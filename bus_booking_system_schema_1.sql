@@ -104,16 +104,6 @@ INSERT INTO Trip (bus_id, trip_date, system_status) VALUES
 (1, '2026-07-02 08:00:00', 'Active'), -- Trip 2
 (2, '2026-07-01 10:00:00', 'Active'); -- Trip 3
 
--- 6. Insert Bookings
--- Insert a fully booked ticket (Visitor 1 booked Seat 1 on Trip 1)
-INSERT INTO Booking (visitor_id, trip_id, seat_id, booking_status, lock_expires_at) VALUES
-(1, 1, 1, 'Booked', NULL);
-
--- Insert a pending ticket (Visitor 2 is holding Seat 2 on Trip 1)
--- Notice we set the lock_expires_at time to 5 minutes into the future
-INSERT INTO Booking (visitor_id, trip_id, seat_id, booking_status, lock_expires_at) VALUES
-(2, 1, 2, 'Pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE));
-
 SHOW TABLES;
 
 SELECT 
