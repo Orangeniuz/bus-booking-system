@@ -1,9 +1,12 @@
+import hashlib
 import mysql.connector
 from mysql.connector import Error
 
 STARTING_DAILY_BUS_LIMIT = 10
 EXTRA_LOAD_FACTOR_THRESHOLD = 0.8
+MIN_LOAD_FACTOR_THRESHOLD = 0.2
 MAX_FLEET_LIMIT = 100
+ADMIN_PASSWORD_SALT = 'bus-booking-salt'
 
 
 def get_db_connection():
@@ -14,6 +17,46 @@ def get_db_connection():
         password='your_new_password',
         ssl_disabled=True
     )
+
+
+def hash_password(password, salt=ADMIN_PASSWORD_SALT):
+    return hashlib.sha256((salt + password).encode('utf-8')).hexdigest()
+
+
+def authenticate_admin(username, password):
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn.is_connected():
+            return False
+
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT password_hash, salt FROM Admin WHERE username = %s;",
+            (username,)
+        )
+        admin = cursor.fetchone()
+
+        if not admin:
+            return False
+
+        return hash_password(password, admin['salt']) == admin['password_hash']
+    except Error as e:
+        print(f"Database Error: {e}")
+        return False
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+
+def admin_merge_trips(username, password, target_trip_id, source_trip_id):
+    if not authenticate_admin(username, password):
+        print("Admin authentication failed.")
+        return False
+
+    print(f"Admin '{username}' authenticated. Proceeding with merge of trips {source_trip_id} into {target_trip_id}.")
+    return merge_trips(target_trip_id, source_trip_id)
 
 
 def request_seat(visitor_id, trip_id, seat_id):
@@ -410,7 +453,37 @@ def merge_trips(target_trip_id, source_trip_id):
         cursor.execute("UPDATE Trip SET system_status = 'Merging' WHERE id IN (%s, %s);", (target_trip_id, source_trip_id))
         
         # 3. Check Load Factor (Requirement: Combine load must be low)
-        # For brevity, assuming the admin already validated the <= 0.2 rule before clicking "Merge" in the UI.
+        load_factor_query = """
+            SELECT 
+                SUM(bus.total_seats) AS total_capacity,
+                SUM(CASE WHEN b.booking_status IN ('Pending', 'Booked') THEN 1 ELSE 0 END) AS reserved_seats
+            FROM Trip t
+            JOIN Bus bus ON t.bus_id = bus.id
+            LEFT JOIN Booking b ON b.trip_id = t.id
+            WHERE t.id IN (%s, %s);
+        """
+        cursor.execute(load_factor_query, (target_trip_id, source_trip_id))
+        load_stats = cursor.fetchone()
+
+        total_capacity = load_stats['total_capacity'] or 0
+        reserved_seats = load_stats['reserved_seats'] or 0
+
+        if total_capacity == 0:
+            print("Merge Failed: Unable to determine bus capacities.")
+            conn.rollback()
+            return False
+
+        load_factor = reserved_seats / total_capacity
+        print(f"Merge Load Factor for trips {target_trip_id} + {source_trip_id}: {load_factor:.2f} "
+              f"({reserved_seats}/{total_capacity}).")
+
+        if load_factor > MIN_LOAD_FACTOR_THRESHOLD:
+            print(
+                f"Merge Failed: Load factor {load_factor:.2f} exceeds "
+                f"minimum threshold of {MIN_LOAD_FACTOR_THRESHOLD:.2f}."
+            )
+            conn.rollback()
+            return False
 
         # 4. Collision Detection Check
         # Are there any identical seat numbers booked on BOTH buses?

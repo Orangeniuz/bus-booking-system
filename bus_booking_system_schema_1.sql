@@ -6,6 +6,14 @@ CREATE TABLE Visitor (
     id INT AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=InnoDB;
 
+-- 1.1 Create Admin Table for secure admin login
+CREATE TABLE Admin (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    salt VARCHAR(50) NOT NULL
+) ENGINE=InnoDB;
+
 -- 2. Create Bus Table
 CREATE TABLE Bus (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -53,6 +61,10 @@ INSERT INTO Visitor (id) VALUES
 (DEFAULT), 
 (DEFAULT), 
 (DEFAULT);
+
+-- 1.2 Insert default admin user
+INSERT INTO Admin (username, password_hash, salt) VALUES
+('admin', '3bf643e045c87c659fb9172b44b1e9ba075d9060328b22a717fea227280f4139', 'bus-booking-salt');
 
 -- 2. Insert 2 Dummy Buses (10 seats each)
 INSERT INTO Bus (total_seats, is_active) VALUES

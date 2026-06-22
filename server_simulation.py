@@ -1,7 +1,7 @@
 from async_logger import AsyncBatchLogger
 import threading
 import time
-from booking_engine import request_seat
+from booking_engine import request_seat, admin_merge_trips
 
 # 1. Thread-Safe Visitor Counter
 class VisitorCounter:
@@ -59,7 +59,7 @@ def run_threading_server(client_requests, counter, logger):
         # Create a new thread for each client request
         t = threading.Thread(
             target=handle_client, 
-            args=(req['visitor_id'], req['trip_id'], req['seat_id'], counter)
+            args=(req['visitor_id'], req['trip_id'], req['seat_id'], counter, logger)
         )
         threads.append(t)
         t.start() # Starts the thread without blocking the loop
@@ -104,6 +104,11 @@ if __name__ == "__main__":
     for t in threads:
         t.join()
 
+    # Attempt an admin merge after the client threads have run
+    print("\nAttempting admin merge with credentials admin/password123...")
+    merge_result = admin_merge_trips('admin', 'password123', target_trip_id=1, source_trip_id=3)
+    print(f"Admin merge result: {merge_result}")
+
     # CRITICAL: Tell the logger to flush remaining memory to disk before Python exits
-    logger.shutdown() 
+    logger.shutdown()
     print("Server shut down safely. Logs saved.")
