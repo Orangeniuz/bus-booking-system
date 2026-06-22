@@ -1,28 +1,30 @@
 import threading
 import queue
 import time
-import os
 
 class AsyncBatchLogger:
     def __init__(self, filepath="archive.log", batch_size=10, flush_interval=2.0):
         self.filepath = filepath
         self.batch_size = batch_size
         self.flush_interval = flush_interval
-        
-        # A thread-safe FIFO (First-In-First-Out) queue
+
+        # A thread-safe FIFO queue buffer.
         self.log_queue = queue.Queue()
         self.stop_event = threading.Event()
-        # Lock to ensure atomic flush decision (shutdown vs batch accumulation)
+        self.io_ops = 0
+
+        # Lock to prevent a shutdown race while the writer is flushing.
         self.flush_lock = threading.Lock()
-        
-        # Start the dedicated background writer thread
+
+        # Keep the file open for repeated appends to reduce open/close overhead.
+        self.file = open(self.filepath, 'a', encoding='utf-8')
+
         self.writer_thread = threading.Thread(target=self._process_logs, daemon=True)
         self.writer_thread.start()
 
     def log(self, message):
         """
-        Clients and worker threads call this. 
-        It is instantaneous because it only writes to RAM (the queue), not the disk.
+        Enqueue a log message. This is non-blocking for the caller.
         """
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
         formatted_message = f"[{timestamp}] {message}\n"
@@ -30,27 +32,21 @@ class AsyncBatchLogger:
 
     def _process_logs(self):
         """
-        The background loop that actually talks to the hard drive.
+        Background writer thread: batch entries then write them to disk.
         """
         while not self.stop_event.is_set() or not self.log_queue.empty():
             batch = []
             try:
-                # Try to grab the first item, wait up to flush_interval seconds
                 item = self.log_queue.get(timeout=self.flush_interval)
                 batch.append(item)
-                
-                # Grab more items quickly until we hit the batch limit
                 while len(batch) < self.batch_size:
                     try:
-                        next_item = self.log_queue.get_nowait()
-                        batch.append(next_item)
+                        batch.append(self.log_queue.get_nowait())
                     except queue.Empty:
-                        break # No more items right now
-                        
+                        break
             except queue.Empty:
-                pass # The timeout triggered, time to flush whatever we have
+                pass
 
-            # Atomically decide whether to flush (protects against shutdown race)
             with self.flush_lock:
                 if batch:
                     self._write_to_disk(batch)
@@ -59,19 +55,23 @@ class AsyncBatchLogger:
 
     def _write_to_disk(self, batch):
         """
-        Opens the file, dumps the whole batch, and closes it.
+        Write the entire batch to the open file in a single I/O operation.
         """
         try:
-            # 'a' mode appends to the file safely
-            with open(self.filepath, 'a', encoding='utf-8') as f:
-                f.writelines(batch)
+            self.file.writelines(batch)
+            self.file.flush()
+            self.io_ops += 1
         except Exception as e:
             print(f"Failed to write to log file: {e}")
 
     def shutdown(self):
         """
-        Gracefully stops the logger, ensuring everything in RAM is saved to disk before closing.
+        Stop the logger and flush any remaining entries.
         """
         with self.flush_lock:
             self.stop_event.set()
         self.writer_thread.join()
+        try:
+            self.file.close()
+        except Exception:
+            pass
