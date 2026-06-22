@@ -12,6 +12,8 @@ class AsyncBatchLogger:
         # A thread-safe FIFO (First-In-First-Out) queue
         self.log_queue = queue.Queue()
         self.stop_event = threading.Event()
+        # Lock to ensure atomic flush decision (shutdown vs batch accumulation)
+        self.flush_lock = threading.Lock()
         
         # Start the dedicated background writer thread
         self.writer_thread = threading.Thread(target=self._process_logs, daemon=True)
@@ -48,11 +50,12 @@ class AsyncBatchLogger:
             except queue.Empty:
                 pass # The timeout triggered, time to flush whatever we have
 
-            # If we collected anything, perform ONE single disk write
-            if batch:
-                self._write_to_disk(batch)
-                for _ in range(len(batch)):
-                    self.log_queue.task_done()
+            # Atomically decide whether to flush (protects against shutdown race)
+            with self.flush_lock:
+                if batch:
+                    self._write_to_disk(batch)
+                    for _ in range(len(batch)):
+                        self.log_queue.task_done()
 
     def _write_to_disk(self, batch):
         """
@@ -69,5 +72,6 @@ class AsyncBatchLogger:
         """
         Gracefully stops the logger, ensuring everything in RAM is saved to disk before closing.
         """
-        self.stop_event.set()
+        with self.flush_lock:
+            self.stop_event.set()
         self.writer_thread.join()
