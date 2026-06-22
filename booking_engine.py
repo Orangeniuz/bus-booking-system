@@ -1,19 +1,23 @@
 import mysql.connector
 from mysql.connector import Error
 
+
+def get_db_connection():
+    return mysql.connector.connect(
+        host='localhost',
+        database='bus_booking_system',
+        user='root',
+        password='your_new_password',
+        ssl_disabled=True
+    )
+
+
 def request_seat(visitor_id, trip_id, seat_id):
     # Initialize conn to None so the except block doesn't crash if connection fails
     conn = None 
     
     try:
-        # Add ssl_disabled=True to bypass the outdated SSL method
-        conn = mysql.connector.connect(
-            host='localhost',
-            database='bus_booking_system',
-            user='root',
-            password='your_new_password',
-            ssl_disabled=True
-        )
+        conn = get_db_connection()
         
         if not conn.is_connected():
             return False
@@ -100,13 +104,7 @@ def confirm_booking(visitor_id, trip_id, seat_id):
     """
     conn = None
     try:
-        conn = mysql.connector.connect(
-            host='localhost',
-            database='bus_booking_system',
-            user='root',
-            password='your_new_password',
-            ssl_disabled=True
-        )
+        conn = get_db_connection()
         if not conn.is_connected():
             return False
 
@@ -147,13 +145,7 @@ def cancel_booking(visitor_id, trip_id, seat_id):
     """
     conn = None
     try:
-        conn = mysql.connector.connect(
-            host='localhost',
-            database='bus_booking_system',
-            user='root',
-            password='your_new_password',
-            ssl_disabled=True
-        )
+        conn = get_db_connection()
         if not conn.is_connected():
             return False
 
@@ -194,13 +186,7 @@ def scale_buses_if_needed(target_date_str):
     """
     conn = None
     try:
-        conn = mysql.connector.connect(
-            host='localhost',
-            database='bus_booking_system',
-            user='root',
-            password='your_new_password',
-            ssl_disabled=True
-        )
+        conn = get_db_connection()
         if not conn.is_connected():
             return False
 
