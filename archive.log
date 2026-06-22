@@ -1,0 +1,112 @@
+[2026-06-22 14:53:18] Visitor 1 connected. (Active: 1)
+[2026-06-22 14:53:18] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 14:53:18] Visitor 2 connected. (Active: 2)
+[2026-06-22 14:53:18] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 14:53:18] Visitor 3 connected. (Active: 3)
+[2026-06-22 14:53:18] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 14:53:18] [SUCCESS] Visitor 3 locked the seat!
+[2026-06-22 14:53:18] Visitor 3 disconnected. (Active: 2)
+[2026-06-22 14:53:18] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 14:53:18] Visitor 2 disconnected. (Active: 1)
+[2026-06-22 14:53:18] [FAIL] Visitor 1 failed to get the seat.
+[2026-06-22 14:53:18] Visitor 1 disconnected. (Active: 0)
+[2026-06-22 14:56:40] [Agent 1] Online (Active: 1). V:5 wants Trip 2, Seat 3.
+[2026-06-22 14:56:40] [Agent 1] FAILED. Seat 3 on Trip 2 was taken.
+[2026-06-22 14:56:40] [Agent 37] Online (Active: 1). V:2 wants Trip 2, Seat 6.
+[2026-06-22 14:56:40] [Agent 37] SUCCESS! Secured Seat 6 on Trip 2.
+[2026-06-22 14:56:40] [Agent 12] Online (Active: 1). V:4 wants Trip 3, Seat 5.
+[2026-06-22 14:56:40] [Agent 12] FAILED. Seat 5 on Trip 3 was taken.
+[2026-06-22 14:56:40] [Agent 17] Online (Active: 1). V:1 wants Trip 1, Seat 2.
+[2026-06-22 14:56:40] [Agent 17] SUCCESS! Secured Seat 2 on Trip 1.
+[2026-06-22 14:56:40] [Agent 5] Online (Active: 1). V:4 wants Trip 1, Seat 3.
+[2026-06-22 14:56:40] [Agent 5] FAILED. Seat 3 on Trip 1 was taken.
+[2026-06-22 14:56:40] [Agent 29] Online (Active: 1). V:3 wants Trip 2, Seat 8.
+[2026-06-22 14:56:40] [Agent 29] SUCCESS! Secured Seat 8 on Trip 2.
+[2026-06-22 14:56:40] [Agent 36] Online (Active: 1). V:2 wants Trip 3, Seat 3.
+[2026-06-22 14:56:40] [Agent 36] SUCCESS! Secured Seat 3 on Trip 3.
+[2026-06-22 14:56:40] [Agent 10] Online (Active: 1). V:5 wants Trip 3, Seat 7.
+[2026-06-22 14:56:40] [Agent 10] FAILED. Seat 7 on Trip 3 was taken.
+[2026-06-22 14:56:40] [Agent 40] Online (Active: 1). V:3 wants Trip 1, Seat 1.
+[2026-06-22 14:56:40] [Agent 40] FAILED. Seat 1 on Trip 1 was taken.
+[2026-06-22 14:56:40] [Agent 16] Online (Active: 1). V:4 wants Trip 1, Seat 4.
+[2026-06-22 14:56:40] [Agent 16] FAILED. Seat 4 on Trip 1 was taken.
+[2026-06-22 14:56:40] [Agent 43] Online (Active: 1). V:2 wants Trip 2, Seat 4.
+[2026-06-22 14:56:40] [Agent 43] SUCCESS! Secured Seat 4 on Trip 2.
+[2026-06-22 14:56:40] [Agent 22] Online (Active: 1). V:1 wants Trip 2, Seat 6.
+[2026-06-22 14:56:40] [Agent 22] FAILED. Seat 6 on Trip 2 was taken.
+[2026-06-22 14:56:40] [Agent 15] Online (Active: 1). V:5 wants Trip 2, Seat 5.
+[2026-06-22 14:56:40] [Agent 15] FAILED. Seat 5 on Trip 2 was taken.
+[2026-06-22 14:56:40] [Agent 34] Online (Active: 1). V:3 wants Trip 1, Seat 1.
+[2026-06-22 14:56:40] [Agent 34] FAILED. Seat 1 on Trip 1 was taken.
+[2026-06-22 14:56:40] [Agent 14] Online (Active: 1). V:1 wants Trip 1, Seat 7.
+[2026-06-22 14:56:40] [Agent 14] SUCCESS! Secured Seat 7 on Trip 1.
+[2026-06-22 14:56:40] [Agent 23] Online (Active: 1). V:2 wants Trip 1, Seat 2.
+[2026-06-22 14:56:40] [Agent 23] FAILED. Seat 2 on Trip 1 was taken.
+[2026-06-22 14:56:40] [Agent 44] Online (Active: 1). V:5 wants Trip 3, Seat 1.
+[2026-06-22 14:56:40] [Agent 44] FAILED. Seat 1 on Trip 3 was taken.
+[2026-06-22 14:56:40] [Agent 41] Online (Active: 1). V:1 wants Trip 3, Seat 5.
+[2026-06-22 14:56:40] [Agent 41] SUCCESS! Secured Seat 5 on Trip 3.
+[2026-06-22 14:56:41] [Agent 2] Online (Active: 1). V:4 wants Trip 3, Seat 7.
+[2026-06-22 14:56:41] [Agent 2] FAILED. Seat 7 on Trip 3 was taken.
+[2026-06-22 14:56:41] [Agent 21] Online (Active: 1). V:4 wants Trip 1, Seat 6.
+[2026-06-22 14:56:41] [Agent 21] FAILED. Seat 6 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 18] Online (Active: 1). V:1 wants Trip 1, Seat 7.
+[2026-06-22 14:56:41] [Agent 18] FAILED. Seat 7 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 27] Online (Active: 1). V:1 wants Trip 3, Seat 2.
+[2026-06-22 14:56:41] [Agent 27] SUCCESS! Secured Seat 2 on Trip 3.
+[2026-06-22 14:56:41] [Agent 38] Online (Active: 1). V:3 wants Trip 2, Seat 7.
+[2026-06-22 14:56:41] [Agent 38] SUCCESS! Secured Seat 7 on Trip 2.
+[2026-06-22 14:56:41] [Agent 11] Online (Active: 1). V:5 wants Trip 2, Seat 5.
+[2026-06-22 14:56:41] [Agent 11] FAILED. Seat 5 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 20] Online (Active: 1). V:3 wants Trip 2, Seat 6.
+[2026-06-22 14:56:41] [Agent 20] FAILED. Seat 6 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 33] Online (Active: 1). V:3 wants Trip 3, Seat 5.
+[2026-06-22 14:56:41] [Agent 33] FAILED. Seat 5 on Trip 3 was taken.
+[2026-06-22 14:56:41] [Agent 4] Online (Active: 1). V:5 wants Trip 1, Seat 3.
+[2026-06-22 14:56:41] [Agent 4] FAILED. Seat 3 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 35] Online (Active: 1). V:3 wants Trip 3, Seat 4.
+[2026-06-22 14:56:41] [Agent 30] Online (Active: 2). V:5 wants Trip 1, Seat 1.
+[2026-06-22 14:56:41] [Agent 35] SUCCESS! Secured Seat 4 on Trip 3.
+[2026-06-22 14:56:41] [Agent 30] FAILED. Seat 1 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 24] Online (Active: 1). V:2 wants Trip 1, Seat 8.
+[2026-06-22 14:56:41] [Agent 24] SUCCESS! Secured Seat 8 on Trip 1.
+[2026-06-22 14:56:41] [Agent 47] Online (Active: 1). V:4 wants Trip 2, Seat 2.
+[2026-06-22 14:56:41] [Agent 47] FAILED. Seat 2 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 39] Online (Active: 1). V:3 wants Trip 2, Seat 7.
+[2026-06-22 14:56:41] [Agent 39] FAILED. Seat 7 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 9] Online (Active: 1). V:1 wants Trip 1, Seat 5.
+[2026-06-22 14:56:41] [Agent 9] SUCCESS! Secured Seat 5 on Trip 1.
+[2026-06-22 14:56:41] [Agent 42] Online (Active: 1). V:1 wants Trip 2, Seat 8.
+[2026-06-22 14:56:41] [Agent 42] FAILED. Seat 8 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 45] Online (Active: 1). V:1 wants Trip 1, Seat 2.
+[2026-06-22 14:56:41] [Agent 50] Online (Active: 2). V:5 wants Trip 1, Seat 2.
+[2026-06-22 14:56:41] [Agent 45] FAILED. Seat 2 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 50] FAILED. Seat 2 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 28] Online (Active: 1). V:5 wants Trip 1, Seat 3.
+[2026-06-22 14:56:41] [Agent 28] FAILED. Seat 3 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 13] Online (Active: 1). V:2 wants Trip 3, Seat 4.
+[2026-06-22 14:56:41] [Agent 13] FAILED. Seat 4 on Trip 3 was taken.
+[2026-06-22 14:56:41] [Agent 49] Online (Active: 1). V:2 wants Trip 2, Seat 7.
+[2026-06-22 14:56:41] [Agent 49] FAILED. Seat 7 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 48] Online (Active: 1). V:4 wants Trip 3, Seat 3.
+[2026-06-22 14:56:41] [Agent 48] FAILED. Seat 3 on Trip 3 was taken.
+[2026-06-22 14:56:41] [Agent 6] Online (Active: 1). V:1 wants Trip 1, Seat 1.
+[2026-06-22 14:56:41] [Agent 6] FAILED. Seat 1 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 7] Online (Active: 1). V:3 wants Trip 3, Seat 3.
+[2026-06-22 14:56:41] [Agent 7] FAILED. Seat 3 on Trip 3 was taken.
+[2026-06-22 14:56:41] [Agent 3] Online (Active: 1). V:1 wants Trip 2, Seat 4.
+[2026-06-22 14:56:41] [Agent 3] FAILED. Seat 4 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 31] Online (Active: 1). V:1 wants Trip 3, Seat 2.
+[2026-06-22 14:56:41] [Agent 31] FAILED. Seat 2 on Trip 3 was taken.
+[2026-06-22 14:56:41] [Agent 25] Online (Active: 1). V:3 wants Trip 1, Seat 6.
+[2026-06-22 14:56:41] [Agent 25] SUCCESS! Secured Seat 6 on Trip 1.
+[2026-06-22 14:56:41] [Agent 32] Online (Active: 1). V:1 wants Trip 1, Seat 6.
+[2026-06-22 14:56:41] [Agent 32] FAILED. Seat 6 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 46] Online (Active: 1). V:1 wants Trip 2, Seat 8.
+[2026-06-22 14:56:41] [Agent 46] FAILED. Seat 8 on Trip 2 was taken.
+[2026-06-22 14:56:41] [Agent 19] Online (Active: 1). V:1 wants Trip 1, Seat 2.
+[2026-06-22 14:56:41] [Agent 19] FAILED. Seat 2 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 8] Online (Active: 1). V:4 wants Trip 1, Seat 6.
+[2026-06-22 14:56:41] [Agent 8] FAILED. Seat 6 on Trip 1 was taken.
+[2026-06-22 14:56:41] [Agent 26] Online (Active: 1). V:4 wants Trip 3, Seat 4.
+[2026-06-22 14:56:41] [Agent 26] FAILED. Seat 4 on Trip 3 was taken.
