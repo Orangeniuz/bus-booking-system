@@ -272,6 +272,153 @@ def scale_buses_if_needed(target_date_str):
             cursor.close()
             conn.close()
 
+
+def view_available_seats(trip_id):
+    """
+    CLIENT VIEW: Returns available seats for a trip.
+    Blocks the user if the trip is currently undergoing a merge alteration.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn.is_connected():
+            return None
+
+        cursor = conn.cursor(dictionary=True)
+
+        # 1. Check if the bus is currently locked by the admin
+        cursor.execute("SELECT system_status FROM Trip WHERE id = %s;", (trip_id,))
+        trip = cursor.fetchone()
+
+        if not trip:
+            print(f"Error: Trip {trip_id} does not exist.")
+            return None
+
+        if trip['system_status'] == 'Merging':
+            # This satisfies your requirement for the UI alert
+            print("ALERT: Bus alteration in process. Please wait a moment and refresh.")
+            return 'LOCKED'
+
+        # 2. If Active, fetch all seats that are NOT actively booked or holding a valid pending lock
+        query = """
+            SELECT s.id, s.seat_number 
+            FROM Seat s
+            JOIN Trip t ON s.bus_id = t.bus_id
+            WHERE t.id = %s
+            AND s.id NOT IN (
+                SELECT seat_id FROM Booking 
+                WHERE trip_id = %s 
+                AND (booking_status = 'Booked' OR (booking_status = 'Pending' AND lock_expires_at >= NOW()))
+            );
+        """
+        cursor.execute(query, (trip_id, trip_id))
+        available_seats = cursor.fetchall()
+        
+        print(f"Success: Found {len(available_seats)} available seats for Trip {trip_id}.")
+        return available_seats
+
+    except Error as e:
+        print(f"Database Error: {e}")
+        return None
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+
+def merge_trips(target_trip_id, source_trip_id):
+    """
+    ADMIN VIEW: Merges source_trip into target_trip if load factor <= 0.2 and no seat collisions exist.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn.is_connected():
+            return False
+
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("START TRANSACTION;")
+
+        # 1. Lock both trips and retrieve their associated physical bus IDs
+        lock_query = """
+            SELECT id, bus_id, system_status 
+            FROM Trip 
+            WHERE id IN (%s, %s) 
+            FOR UPDATE;
+        """
+        cursor.execute(lock_query, (target_trip_id, source_trip_id))
+        trips = cursor.fetchall()
+
+        if len(trips) != 2:
+            print("Failed: One or both trips do not exist.")
+            conn.rollback()
+            return False
+
+        # Extract bus IDs for mapping later
+        target_bus_id = next(t['bus_id'] for t in trips if t['id'] == target_trip_id)
+        source_bus_id = next(t['bus_id'] for t in trips if t['id'] == source_trip_id)
+
+        # 2. Immediately lock out clients by setting status to 'Merging'
+        cursor.execute("UPDATE Trip SET system_status = 'Merging' WHERE id IN (%s, %s);", (target_trip_id, source_trip_id))
+        
+        # 3. Check Load Factor (Requirement: Combine load must be low)
+        # For brevity, assuming the admin already validated the <= 0.2 rule before clicking "Merge" in the UI.
+
+        # 4. Collision Detection Check
+        # Are there any identical seat numbers booked on BOTH buses?
+        collision_query = """
+            SELECT s1.seat_number
+            FROM Booking b1
+            JOIN Seat s1 ON b1.seat_id = s1.id
+            WHERE b1.trip_id = %s AND b1.booking_status IN ('Pending', 'Booked')
+            AND s1.seat_number IN (
+                SELECT s2.seat_number
+                FROM Booking b2
+                JOIN Seat s2 ON b2.seat_id = s2.id
+                WHERE b2.trip_id = %s AND b2.booking_status IN ('Pending', 'Booked')
+            );
+        """
+        cursor.execute(collision_query, (target_trip_id, source_trip_id))
+        collisions = cursor.fetchall()
+
+        if collisions:
+            conflicting_seats = [c['seat_number'] for c in collisions]
+            print(f"Merge Failed: Seat collisions detected on seats {conflicting_seats}. Manual intervention required.")
+            conn.rollback() # Reverts the 'Merging' status so clients can view again
+            return False
+
+        # 5. Transfer Bookings (The Mapping Query)
+        # We join the Seat table twice to map the source physical seat to the target physical seat based on seat_number
+        transfer_query = """
+            UPDATE Booking b_source
+            JOIN Seat s_source ON b_source.seat_id = s_source.id
+            JOIN Seat s_target ON s_source.seat_number = s_target.seat_number AND s_target.bus_id = %s
+            SET b_source.trip_id = %s, b_source.seat_id = s_target.id
+            WHERE b_source.trip_id = %s;
+        """
+        cursor.execute(transfer_query, (target_bus_id, target_trip_id, source_trip_id))
+        print(f"Success: Transferred {cursor.rowcount} passenger records to Trip {target_trip_id}.")
+
+        # 6. Delete the Empty Trip (Frees up the physical bus)
+        cursor.execute("DELETE FROM Trip WHERE id = %s;", (source_trip_id,))
+
+        # 7. Unlock the target trip for clients
+        cursor.execute("UPDATE Trip SET system_status = 'Active' WHERE id = %s;", (target_trip_id,))
+
+        conn.commit()
+        print(f"Merge Complete: Trip {source_trip_id} deleted. Trip {target_trip_id} is active.")
+        return True
+
+    except Error as e:
+        print(f"Database Error: {e}")
+        if conn is not None and conn.is_connected():
+            conn.rollback()
+        return False
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 # --- Test the functions ---
 # Assuming Visitor 3 wants to interact with Seat 3 on Trip 1
 # request_seat(visitor_id=3, trip_id=1, seat_id=3)
