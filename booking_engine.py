@@ -42,11 +42,43 @@ def authenticate_admin(username, password):
 
         return hash_password(password, admin['salt']) == admin['password_hash']
     except Error as e:
+        # If the Admin table does not exist (MySQL error 1146), create it
+        # and seed a default admin account for local development.
         print(f"Database Error: {e}")
+        try:
+            if hasattr(e, 'errno') and e.errno == 1146 and conn is not None:
+                cur = conn.cursor()
+                create_sql = """
+                    CREATE TABLE IF NOT EXISTS Admin (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(255) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        salt VARCHAR(255) NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """
+                cur.execute(create_sql)
+
+                # Seed a default admin user 'admin' with password 'password123'
+                default_salt = ADMIN_PASSWORD_SALT
+                default_hash = hash_password('password123', default_salt)
+                insert_sql = (
+                    "INSERT IGNORE INTO Admin (username, password_hash, salt) "
+                    "VALUES (%s, %s, %s);"
+                )
+                cur.execute(insert_sql, ('admin', default_hash, default_salt))
+                conn.commit()
+                cur.close()
+                print("Created Admin table and seeded default admin (admin/password123).")
+        except Error as e2:
+            print(f"Failed to create Admin table or seed admin: {e2}")
         return False
     finally:
         if conn is not None and conn.is_connected():
-            cursor.close()
+            try:
+                cursor.close()
+            except Exception:
+                pass
             conn.close()
 
 

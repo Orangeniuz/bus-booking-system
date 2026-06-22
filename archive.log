@@ -310,3 +310,99 @@
 [2026-06-22 15:01:42] [Agent 99] FAILED. Seat 1 on Trip 1 was taken.
 [2026-06-22 15:01:42] [Agent 15] Online (Active: 1). V:3 wants Trip 2, Seat 6.
 [2026-06-22 15:01:42] [Agent 15] SUCCESS! Secured Seat 6 on Trip 2.
+[2026-06-22 16:28:18] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:28:18] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:28:18] [SUCCESS] Visitor 1 locked the seat!
+[2026-06-22 16:28:18] Visitor 1 disconnected. (Active: 0)
+[2026-06-22 16:28:18] Visitor 2 connected. (Active: 1)
+[2026-06-22 16:28:18] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:28:19] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:28:19] Visitor 2 disconnected. (Active: 0)
+[2026-06-22 16:28:19] Visitor 3 connected. (Active: 1)
+[2026-06-22 16:28:19] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:28:19] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:28:19] Visitor 3 disconnected. (Active: 0)
+[2026-06-22 16:28:19] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:28:19] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:28:19] Visitor 2 connected. (Active: 2)
+[2026-06-22 16:28:19] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:28:19] Visitor 3 connected. (Active: 3)
+[2026-06-22 16:28:19] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:28:20] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:28:20] Visitor 2 disconnected. (Active: 2)
+[2026-06-22 16:28:20] [FAIL] Visitor 1 failed to get the seat.
+[2026-06-22 16:28:20] Visitor 1 disconnected. (Active: 1)
+[2026-06-22 16:28:20] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:28:20] Visitor 3 disconnected. (Active: 0)
+[2026-06-22 16:30:42] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:30:42] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:30:43] [FAIL] Visitor 1 failed to get the seat.
+[2026-06-22 16:30:43] Visitor 1 disconnected. (Active: 0)
+[2026-06-22 16:30:43] Visitor 2 connected. (Active: 1)
+[2026-06-22 16:30:43] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:30:43] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:30:43] Visitor 2 disconnected. (Active: 0)
+[2026-06-22 16:30:43] Visitor 3 connected. (Active: 1)
+[2026-06-22 16:30:43] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:30:44] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:30:44] Visitor 3 disconnected. (Active: 0)
+[2026-06-22 16:30:44] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:30:44] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:30:44] Visitor 2 connected. (Active: 2)
+[2026-06-22 16:30:44] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:30:44] Visitor 3 connected. (Active: 3)
+[2026-06-22 16:30:44] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:30:44] [FAIL] Visitor 1 failed to get the seat.
+[2026-06-22 16:30:44] Visitor 1 disconnected. (Active: 2)
+[2026-06-22 16:30:44] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:30:44] Visitor 2 disconnected. (Active: 1)
+[2026-06-22 16:30:44] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:30:44] Visitor 3 disconnected. (Active: 0)
+[2026-06-22 16:37:35] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:37:35] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:37:36] [SUCCESS] Visitor 1 locked the seat!
+[2026-06-22 16:37:36] Visitor 1 disconnected. (Active: 0)
+[2026-06-22 16:37:36] Visitor 2 connected. (Active: 1)
+[2026-06-22 16:37:36] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:37:36] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:37:36] Visitor 2 disconnected. (Active: 0)
+[2026-06-22 16:37:36] Visitor 3 connected. (Active: 1)
+[2026-06-22 16:37:36] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:37:37] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:37:37] Visitor 3 disconnected. (Active: 0)
+[2026-06-22 16:37:37] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:37:37] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:37:37] Visitor 2 connected. (Active: 2)
+[2026-06-22 16:37:37] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:37:37] Visitor 3 connected. (Active: 3)
+[2026-06-22 16:37:37] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:37:37] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:37:37] Visitor 2 disconnected. (Active: 2)
+[2026-06-22 16:37:37] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:37:37] Visitor 3 disconnected. (Active: 1)
+[2026-06-22 16:37:37] [FAIL] Visitor 1 failed to get the seat.
+[2026-06-22 16:37:37] Visitor 1 disconnected. (Active: 0)
+[2026-06-22 16:39:41] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:39:41] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:39:41] [SUCCESS] Visitor 1 locked the seat!
+[2026-06-22 16:39:41] Visitor 1 disconnected. (Active: 0)
+[2026-06-22 16:39:41] Visitor 2 connected. (Active: 1)
+[2026-06-22 16:39:41] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:39:42] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:39:42] Visitor 2 disconnected. (Active: 0)
+[2026-06-22 16:39:42] Visitor 3 connected. (Active: 1)
+[2026-06-22 16:39:42] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:39:42] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:39:42] Visitor 3 disconnected. (Active: 0)
+[2026-06-22 16:39:42] Visitor 1 connected. (Active: 1)
+[2026-06-22 16:39:42] Visitor 1 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:39:42] Visitor 2 connected. (Active: 2)
+[2026-06-22 16:39:42] Visitor 2 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:39:42] Visitor 3 connected. (Active: 3)
+[2026-06-22 16:39:42] Visitor 3 attempting to book Seat 4 on Trip 1...
+[2026-06-22 16:39:43] [FAIL] Visitor 1 failed to get the seat.
+[2026-06-22 16:39:43] Visitor 1 disconnected. (Active: 2)
+[2026-06-22 16:39:43] [FAIL] Visitor 2 failed to get the seat.
+[2026-06-22 16:39:43] Visitor 2 disconnected. (Active: 1)
+[2026-06-22 16:39:43] [FAIL] Visitor 3 failed to get the seat.
+[2026-06-22 16:39:43] Visitor 3 disconnected. (Active: 0)
