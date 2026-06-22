@@ -9,9 +9,9 @@ def request_seat(visitor_id, trip_id, seat_id):
         # Add ssl_disabled=True to bypass the outdated SSL method
         conn = mysql.connector.connect(
             host='localhost',
-            database='bus_booking_system', # Update this
-            user='root', # Update this
-            password='your_new_password', # Update this 
+            database='bus_booking_system',
+            user='root',
+            password='your_new_password',
             ssl_disabled=True
         )
         
@@ -92,6 +92,104 @@ def request_seat(visitor_id, trip_id, seat_id):
             cursor.close()
             conn.close()
 
-# --- Test the function ---
-# Assuming Visitor 3 wants to book Seat 3 on Trip 1
-request_seat(visitor_id=3, trip_id=1, seat_id=3)
+# --- Confirm a pending booking ---
+def confirm_booking(visitor_id, trip_id, seat_id):
+    """
+    Upgrades a 'Pending' seat to 'Booked' permanently.
+    Fails if the 5-minute lock has expired.
+    """
+    conn = None
+    try:
+        conn = mysql.connector.connect(
+            host='localhost',
+            database='bus_booking_system',
+            user='root',
+            password='your_new_password',
+            ssl_disabled=True
+        )
+        if not conn.is_connected():
+            return False
+
+        cursor = conn.cursor()
+        
+        # We only update if it is Pending AND hasn't expired yet
+        update_query = """
+            UPDATE Booking 
+            SET booking_status = 'Booked', lock_expires_at = NULL 
+            WHERE visitor_id = %s AND trip_id = %s AND seat_id = %s 
+            AND booking_status = 'Pending' AND lock_expires_at >= NOW();
+        """
+        cursor.execute(update_query, (visitor_id, trip_id, seat_id))
+        conn.commit()
+
+        # cursor.rowcount tells us how many rows were actually changed
+        if cursor.rowcount > 0:
+            print(f"Success: Seat permanently booked for Visitor {visitor_id}.")
+            return True
+        else:
+            print(f"Failed: Lock expired or no pending booking found for Visitor {visitor_id}.")
+            return False
+
+    except Error as e:
+        print(f"Database Error: {e}")
+        if conn is not None and conn.is_connected():
+            conn.rollback()
+        return False
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+# --- Cancel a pending booking ---
+def cancel_booking(visitor_id, trip_id, seat_id):
+    """
+    Changes a 'Pending' or 'Booked' seat to 'Cancelled', freeing it up.
+    """
+    conn = None
+    try:
+        conn = mysql.connector.connect(
+            host='localhost',
+            database='bus_booking_system',
+            user='root',
+            password='your_new_password',
+            ssl_disabled=True
+        )
+        if not conn.is_connected():
+            return False
+
+        cursor = conn.cursor()
+        
+        # We only cancel if it belongs to this visitor and isn't already cancelled
+        update_query = """
+            UPDATE Booking 
+            SET booking_status = 'Cancelled' 
+            WHERE visitor_id = %s AND trip_id = %s AND seat_id = %s 
+            AND booking_status IN ('Pending', 'Booked');
+        """
+        cursor.execute(update_query, (visitor_id, trip_id, seat_id))
+        conn.commit()
+
+        if cursor.rowcount > 0:
+            print(f"Success: Booking cancelled for Visitor {visitor_id}. Seat is now available.")
+            return True
+        else:
+            print(f"Failed: No active booking found to cancel for Visitor {visitor_id}.")
+            return False
+
+    except Error as e:
+        print(f"Database Error: {e}")
+        if conn is not None and conn.is_connected():
+            conn.rollback()
+        return False
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+# --- Test the functions ---
+# Assuming Visitor 3 wants to interact with Seat 3 on Trip 1
+# request_seat(visitor_id=3, trip_id=1, seat_id=3)
+# Attempt to confirm the booking (will only succeed if still pending and not expired)
+# confirm_booking(visitor_id=3, trip_id=1, seat_id=3)
+# Attempt to cancel the booking (works for Pending or Booked)
+# cancel_booking(visitor_id=3, trip_id=1, seat_id=3)
