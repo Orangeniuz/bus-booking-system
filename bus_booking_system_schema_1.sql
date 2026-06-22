@@ -54,24 +54,36 @@ INSERT INTO Visitor (id) VALUES
 (DEFAULT), 
 (DEFAULT);
 
--- 2. Insert 2 Dummy Buses (40 seats each)
+-- 2. Insert 2 Dummy Buses (10 seats each)
 INSERT INTO Bus (total_seats, is_active) VALUES
-(40, TRUE),
-(40, TRUE);
+(10, TRUE),
+(10, TRUE);
 
--- 3. Insert Seats for Bus 1 (IDs 1-4)
+-- 3. Insert Seats for Bus 1 (IDs 1-10)
 INSERT INTO Seat (bus_id, seat_number) VALUES
-(1, '1A'), 
-(1, '1B'), 
-(1, '2A'), 
-(1, '2B');
+(1, '1'),
+(1, '2'),
+(1, '3'),
+(1, '4'),
+(1, '5'),
+(1, '6'),
+(1, '7'),
+(1, '8'),
+(1, '9'),
+(1, '10');
 
--- 4. Insert Seats for Bus 2 (IDs 5-8)
+-- 4. Insert Seats for Bus 2 (IDs 11-20)
 INSERT INTO Seat (bus_id, seat_number) VALUES
-(2, '1A'), 
-(2, '1B'), 
-(2, '2A'), 
-(2, '2B');
+(2, '1'),
+(2, '2'),
+(2, '3'),
+(2, '4'),
+(2, '5'),
+(2, '6'),
+(2, '7'),
+(2, '8'),
+(2, '9'),
+(2, '10');
 
 -- 5. Insert Trips for multiple days
 -- Note: Updated column name to your 'trip_date'
@@ -81,11 +93,11 @@ INSERT INTO Trip (bus_id, trip_date, system_status) VALUES
 (2, '2026-07-01 10:00:00', 'Active'); -- Trip 3
 
 -- 6. Insert Bookings
--- Insert a fully booked ticket (Visitor 1 booked Seat 1A on Trip 1)
+-- Insert a fully booked ticket (Visitor 1 booked Seat 1 on Trip 1)
 INSERT INTO Booking (visitor_id, trip_id, seat_id, booking_status, lock_expires_at) VALUES
 (1, 1, 1, 'Booked', NULL);
 
--- Insert a pending ticket (Visitor 2 is holding Seat 1B on Trip 1)
+-- Insert a pending ticket (Visitor 2 is holding Seat 2 on Trip 1)
 -- Notice we set the lock_expires_at time to 5 minutes into the future
 INSERT INTO Booking (visitor_id, trip_id, seat_id, booking_status, lock_expires_at) VALUES
 (2, 1, 2, 'Pending', DATE_ADD(NOW(), INTERVAL 5 MINUTE));
