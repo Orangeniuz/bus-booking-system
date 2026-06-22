@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Admin Trip Details - Bus Booking System{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Trip {{ trip.id }} Details</h2>
+  <p><strong>Date / Time:</strong> {{ trip.trip_date }}</p>
+  <p><strong>Bus ID:</strong> {{ trip.bus_id }}</p>
+  <p><strong>Status:</strong> {{ trip.system_status }}</p>
+  <p><strong>Total Seats:</strong> {{ trip.total_seats }}</p>
+</div>
+
+<div class="card">
+  <h3>Bookings</h3>
+  {% if bookings %}
+  <table>
+    <thead>
+      <tr>
+        <th>Booking ID</th>
+        <th>Visitor ID</th>
+        <th>Seat</th>
+        <th>Status</th>
+        <th>Expires</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ booking.booking_id }}</td>
+        <td>{{ booking.visitor_id }}</td>
+        <td>{{ booking.seat_number }}</td>
+        <td>{{ booking.booking_status }}</td>
+        <td>{{ booking.lock_expires_at or 'N/A' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No bookings yet for this trip.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Login - Bus Booking System{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 520px; margin: 1rem auto;">
+  <h2>Sign in</h2>
+  <form method="post">
+    <label>Role</label>
+    <select name="role" required>
+      <option value="">Select a role</option>
+      <option value="client">Client</option>
+      <option value="admin">Admin</option>
+    </select>
+    <div>
+      <label>Visitor ID (clients only)</label>
+      <input type="text" name="visitor_id" placeholder="Leave blank to create a new client">
+    </div>
+    <div>
+      <label>Admin username</label>
+      <input type="text" name="username" placeholder="admin">
+    </div>
+    <div>
+      <label>Admin password</label>
+      <input type="password" name="password" placeholder="password123">
+    </div>
+    <button class="button" type="submit">Login</button>
+  </form>
+  <p style="margin-top: 1rem; color: #475569;">Clients can leave Visitor ID blank to get a new ID automatically.</p>
+</div>
+{% endblock %}

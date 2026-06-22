@@ -1,4 +1,5 @@
 import hashlib
+import os
 import mysql.connector
 from mysql.connector import Error
 
@@ -11,10 +12,10 @@ ADMIN_PASSWORD_SALT = 'bus-booking-salt'
 
 def get_db_connection():
     return mysql.connector.connect(
-        host='localhost',
-        database='bus_booking_system',
-        user='root',
-        password='your_new_password',
+        host=os.environ.get('BUS_BOOKING_DB_HOST', 'localhost'),
+        database=os.environ.get('BUS_BOOKING_DB_NAME', 'bus_booking_system'),
+        user=os.environ.get('BUS_BOOKING_DB_USER', 'root'),
+        password=os.environ.get('BUS_BOOKING_DB_PASSWORD', 'your_new_password'),
         ssl_disabled=True
     )
 
@@ -347,40 +348,50 @@ def scale_buses_if_needed(target_date_str):
             return daily_bus_count >= STARTING_DAILY_BUS_LIMIT
 
         if load_factor >= EXTRA_LOAD_FACTOR_THRESHOLD:
-            print("High load detected. Attempting to add a new bus beyond the starting limit...")
+            print("High load detected. Attempting to add two extra buses beyond the starting limit...")
         else:
             print(
-                f"No additional bus added. Daily starting limit of {STARTING_DAILY_BUS_LIMIT} buses is met and "
+                f"No additional buses added. Daily starting limit of {STARTING_DAILY_BUS_LIMIT} buses is met and "
                 f"load factor {load_factor:.2f} is below the threshold of {EXTRA_LOAD_FACTOR_THRESHOLD}.")
             conn.commit()
             return True
 
+        add_count = 0
         find_bus_query = """
-            SELECT id FROM Bus 
-            WHERE is_active = TRUE 
-            AND id NOT IN (SELECT bus_id FROM Trip WHERE DATE(trip_date) = %s)
-            LIMIT 1 
+            SELECT id FROM Bus
+            WHERE is_active = TRUE
+              AND id NOT IN (SELECT bus_id FROM Trip WHERE DATE(trip_date) = %s)
+            LIMIT 2
             FOR UPDATE;
         """
         cursor.execute(find_bus_query, (target_date_str,))
-        available_bus = cursor.fetchone()
+        available_buses = cursor.fetchall()
 
-        if available_bus:
-            new_bus_id = available_bus['id']
+        if available_buses:
             cursor.execute("SELECT COUNT(*) AS total_fleet FROM Bus;")
             total_fleet = cursor.fetchone()['total_fleet']
 
-            if total_fleet < MAX_FLEET_LIMIT:
+            for available_bus in available_buses:
+                if add_count >= 2:
+                    break
+                if total_fleet >= MAX_FLEET_LIMIT:
+                    print(f"Stopped: Maximum fleet limit of {MAX_FLEET_LIMIT} buses reached.")
+                    break
+
+                new_bus_id = available_bus['id']
                 spawn_query = """
-                    INSERT INTO Trip (bus_id, trip_date, system_status) 
+                    INSERT INTO Trip (bus_id, trip_date, system_status)
                     VALUES (%s, CONCAT(%s, ' 08:00:00'), 'Active');
                 """
                 cursor.execute(spawn_query, (new_bus_id, target_date_str))
+                add_count += 1
+                total_fleet += 1
                 print(f"Success: Bus {new_bus_id} added to the schedule for {target_date_str}.")
-            else:
-                print(f"Failed: Maximum fleet limit of {MAX_FLEET_LIMIT} buses reached.")
+
+        if add_count == 0:
+            print("Failed: No available standby buses to handle the load or fleet limit reached.")
         else:
-            print("Failed: No available standby buses to handle the load.")
+            print(f"Added {add_count} extra bus(es) for {target_date_str}.")
 
         conn.commit()
         return True
@@ -390,6 +401,63 @@ def scale_buses_if_needed(target_date_str):
         if conn is not None and conn.is_connected():
             conn.rollback()
         return False
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+
+def get_daily_load_status(target_date_str):
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn.is_connected():
+            return None
+
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            '''
+            SELECT
+                COUNT(DISTINCT t.id) AS daily_bus_count,
+                SUM(bus.total_seats) AS total_capacity,
+                SUM(CASE WHEN b.booking_status = 'Booked' THEN 1 ELSE 0 END) AS booked_seats
+            FROM Trip t
+            JOIN Bus bus ON t.bus_id = bus.id
+            LEFT JOIN Booking b ON b.trip_id = t.id
+            WHERE DATE(t.trip_date) = %s;
+            ''',
+            (target_date_str,)
+        )
+        stats = cursor.fetchone()
+
+        booked_seats = stats['booked_seats'] or 0
+        total_capacity = stats['total_capacity'] or 0
+        daily_bus_count = stats['daily_bus_count'] or 0
+        load_factor = booked_seats / total_capacity if total_capacity else 0.0
+
+        if daily_bus_count < STARTING_DAILY_BUS_LIMIT:
+            status = (
+                f"Below minimum daily bus count ({daily_bus_count}/{STARTING_DAILY_BUS_LIMIT}). "
+                "System will ensure at least 10 buses."
+            )
+        elif load_factor >= EXTRA_LOAD_FACTOR_THRESHOLD:
+            if daily_bus_count <= STARTING_DAILY_BUS_LIMIT:
+                status = "Load factor at or above 0.8; ready to auto-scale by 2 buses."
+            else:
+                status = "High load detected and extra buses are currently active."
+        else:
+            status = "Current load is within acceptable capacity."
+
+        return {
+            'scheduled_buses': daily_bus_count,
+            'booked_seats': booked_seats,
+            'total_capacity': total_capacity,
+            'load_factor': load_factor,
+            'status': status,
+        }
+    except Error as e:
+        print(f"Database Error: {e}")
+        return None
     finally:
         if conn is not None and conn.is_connected():
             cursor.close()

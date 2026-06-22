@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Seat Selection - Bus Booking System{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Seat Selection for Trip {{ trip.id }}</h2>
+  <p><strong>Date / Time:</strong> {{ trip.trip_date }}</p>
+  <p><strong>Bus ID:</strong> {{ trip.bus_id }}</p>
+  {% if locked_message %}
+    <div class="message error">{{ locked_message }}</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Available Seats</h3>
+  {% if available_seats %}
+    <table>
+      <thead>
+        <tr>
+          <th>Seat ID</th>
+          <th>Seat Number</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for seat in available_seats %}
+        <tr>
+          <td>{{ seat.id }}</td>
+          <td>{{ seat.seat_number }}</td>
+          <td>
+            <form action="{{ url_for('client_book_seat', trip_id=trip.id, seat_id=seat.id) }}" method="post">
+              <button class="button" type="submit">Lock Seat</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No available seats or the trip is locked for alteration.</p>
+  {% endif %}
+</div>
+{% endblock %}

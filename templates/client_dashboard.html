@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Client Dashboard - Bus Booking System{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Client Dashboard</h2>
+  <p>Visitor ID: <strong>{{ visitor_id }}</strong></p>
+  <p>Review available trips below and your current bookings.</p>
+</div>
+
+<div class="card">
+  <h3>Trips</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Trip ID</th>
+        <th>Date / Time</th>
+        <th>Bus ID</th>
+        <th>Status</th>
+        <th>Booked Seats</th>
+        <th>Pending Locks</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for trip in trips %}
+        <tr>
+          <td>{{ trip.id }}</td>
+          <td>{{ trip.trip_date }}</td>
+          <td>{{ trip.bus_id }}</td>
+          <td>{{ trip.system_status }}</td>
+          <td>{{ trip.booked_seats }}</td>
+          <td>{{ trip.pending_locks }}</td>
+          <td><a class="button secondary" href="{{ url_for('client_view_trip', trip_id=trip.id) }}">View Seats</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Your Bookings</h3>
+  {% if bookings %}
+  <table>
+    <thead>
+      <tr>
+        <th>Trip ID</th>
+        <th>Date / Time</th>
+        <th>Seat</th>
+        <th>Status</th>
+        <th>Expires</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td>{{ booking.trip_id }}</td>
+        <td>{{ booking.trip_date }}</td>
+        <td>{{ booking.seat_number }}</td>
+        <td>{{ booking.booking_status }}</td>
+        <td>{{ booking.lock_expires_at or 'N/A' }}</td>
+        <td>
+          {% if booking.booking_status == 'Pending' %}
+            <form action="{{ url_for('client_confirm_booking', trip_id=booking.trip_id, seat_id=booking.seat_id) }}" method="post" style="display:inline;">
+              <button class="button" type="submit">Confirm</button>
+            </form>
+          {% endif %}
+          <form action="{{ url_for('client_cancel_booking', booking_id=booking.booking_id) }}" method="post" style="display:inline; margin-left: 0.5rem;">
+            <button class="button secondary" type="submit">Cancel</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No bookings yet. Select a trip to choose a seat.</p>
+  {% endif %}
+</div>
+{% endblock %}

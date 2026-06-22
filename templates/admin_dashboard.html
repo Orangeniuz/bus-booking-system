@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - Bus Booking System{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Admin Dashboard</h2>
+  <p>Signed in as <strong>{{ username }}</strong></p>
+  <p>Use the controls below to review trips, refresh scheduling, and merge trips when needed.</p>
+</div>
+
+<div class="card">
+  <h3>Trips</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Trip ID</th>
+        <th>Date / Time</th>
+        <th>Bus ID</th>
+        <th>Status</th>
+        <th>Booked Seats</th>
+        <th>Pending Locks</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for trip in trips %}
+      <tr>
+        <td>{{ trip.id }}</td>
+        <td>{{ trip.trip_date }}</td>
+        <td>{{ trip.bus_id }}</td>
+        <td>{{ trip.system_status }}</td>
+        <td>{{ trip.booked_seats }}</td>
+        <td>{{ trip.pending_locks }}</td>
+        <td>
+          <a class="button secondary" href="{{ url_for('admin_view_trip', trip_id=trip.id) }}">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Daily Load Status</h3>
+  {% if load_status %}
+    <p><strong>Date:</strong> {{ today }}</p>
+    <p><strong>Scheduled buses:</strong> {{ load_status.scheduled_buses }}</p>
+    <p><strong>Total capacity:</strong> {{ load_status.total_capacity }}</p>
+    <p><strong>Booked seats:</strong> {{ load_status.booked_seats }}</p>
+    <p><strong>Load factor:</strong> {{ '%.2f' | format(load_status.load_factor) }}</p>
+    <p><strong>Status:</strong> {{ load_status.status }}</p>
+  {% else %}
+    <p>Unable to calculate the daily load status at this time.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Refresh Schedule</h3>
+  <form action="{{ url_for('admin_refresh', date_str=today) }}" method="get">
+    <p>Scale the schedule for <strong>{{ today }}</strong>.</p>
+    <button class="button" type="submit">Refresh Today</button>
+  </form>
+</div>
+{% endblock %}
