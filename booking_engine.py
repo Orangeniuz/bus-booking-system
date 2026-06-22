@@ -186,6 +186,106 @@ def cancel_booking(visitor_id, trip_id, seat_id):
             cursor.close()
             conn.close()
 
+# --- Scale buses when load is high ---
+def scale_buses_if_needed(target_date_str):
+    """
+    Calculates the load factor for a specific date (YYYY-MM-DD).
+    If load factor >= 0.8, it schedules a new bus for that day up to the limit.
+    """
+    conn = None
+    try:
+        conn = mysql.connector.connect(
+            host='localhost',
+            database='bus_booking_system',
+            user='root',
+            password='your_new_password',
+            ssl_disabled=True
+        )
+        if not conn.is_connected():
+            return False
+
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("START TRANSACTION;")
+
+        # 1. Calculate Load Factor for the specific day
+        # We use DATE() to ignore the exact time and group by the calendar day
+        load_query = """
+            SELECT 
+                (SELECT COUNT(*) 
+                 FROM Booking b 
+                 JOIN Trip t ON b.trip_id = t.id 
+                 WHERE DATE(t.trip_date) = %s AND b.booking_status = 'Booked') AS booked_seats,
+                 
+                (SELECT SUM(bus.total_seats) 
+                 FROM Trip t 
+                 JOIN Bus bus ON t.bus_id = bus.id 
+                 WHERE DATE(t.trip_date) = %s) AS total_capacity;
+        """
+        cursor.execute(load_query, (target_date_str, target_date_str))
+        stats = cursor.fetchone()
+
+        booked_seats = stats['booked_seats'] or 0
+        total_capacity = stats['total_capacity'] or 0
+
+        # Avoid division by zero if no buses are scheduled at all
+        if total_capacity == 0:
+            print(f"No buses scheduled for {target_date_str}.")
+            conn.rollback()
+            return False
+
+        load_factor = booked_seats / total_capacity
+        print(f"Current Load Factor for {target_date_str}: {load_factor:.2f} ({booked_seats}/{total_capacity})")
+
+        # 2. Check Threshold
+        if load_factor >= 0.8:
+            print("High load detected. Attempting to add a new bus...")
+
+            # 3. Find an available bus NOT already scheduled for this day
+            # FOR UPDATE locks the bus row so another parallel thread doesn't grab the same bus
+            find_bus_query = """
+                SELECT id FROM Bus 
+                WHERE is_active = TRUE 
+                AND id NOT IN (SELECT bus_id FROM Trip WHERE DATE(trip_date) = %s)
+                LIMIT 1 
+                FOR UPDATE;
+            """
+            cursor.execute(find_bus_query, (target_date_str,))
+            available_bus = cursor.fetchone()
+
+            if available_bus:
+                new_bus_id = available_bus['id']
+                
+                # 4. Check global limit (e.g., max 100 physical buses in the fleet)
+                cursor.execute("SELECT COUNT(*) AS total_fleet FROM Bus;")
+                total_fleet = cursor.fetchone()['total_fleet']
+                
+                if total_fleet <= 100:
+                    # 5. Spawn the new Trip
+                    # Defaulting to 08:00:00 for the new trip time, adjust as needed
+                    spawn_query = """
+                        INSERT INTO Trip (bus_id, trip_date, system_status) 
+                        VALUES (%s, CONCAT(%s, ' 08:00:00'), 'Active');
+                    """
+                    cursor.execute(spawn_query, (new_bus_id, target_date_str))
+                    print(f"Success: Bus {new_bus_id} added to the schedule for {target_date_str}.")
+                else:
+                    print("Failed: Maximum fleet limit of 100 buses reached.")
+            else:
+                print("Failed: No available standby buses to handle the load.")
+        
+        conn.commit()
+        return True
+
+    except Error as e:
+        print(f"Database Error: {e}")
+        if conn is not None and conn.is_connected():
+            conn.rollback()
+        return False
+    finally:
+        if conn is not None and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 # --- Test the functions ---
 # Assuming Visitor 3 wants to interact with Seat 3 on Trip 1
 # request_seat(visitor_id=3, trip_id=1, seat_id=3)
@@ -193,3 +293,5 @@ def cancel_booking(visitor_id, trip_id, seat_id):
 # confirm_booking(visitor_id=3, trip_id=1, seat_id=3)
 # Attempt to cancel the booking (works for Pending or Booked)
 # cancel_booking(visitor_id=3, trip_id=1, seat_id=3)
+# Pass the date you want to check based on your seeded data
+# scale_buses_if_needed('2026-07-01')
