@@ -218,6 +218,26 @@ def trigger_manual_merge(admin_id, target_date, log_queue):
                 bus1_id, group1_id = buses[0]
                 bus2_id, group2_id = buses[1]
                 
+                # --- ANTI-COLLISION CHECK ---
+                # Find if there are any seat numbers where BOTH buses have 'LOCKED' or 'BOOKED' statuses.
+                cursor.execute("""
+                    SELECT s1.seat_number 
+                    FROM SeatAvailability s1
+                    JOIN SeatAvailability s2 ON s1.seat_number = s2.seat_number
+                    WHERE s1.daily_bus_id = %s 
+                      AND s2.daily_bus_id = %s
+                      AND s1.status IN ('BOOKED', 'LOCKED')
+                      AND s2.status IN ('BOOKED', 'LOCKED')
+                """, (bus1_id, bus2_id))
+                
+                colliding_seats = cursor.fetchall()
+                
+                if colliding_seats:
+                    seat_list = ", ".join([str(s[0]) for s in colliding_seats])
+                    log_queue.put(f"[{time.time()}] ⛔ Merge aborted: Seat collision detected on seat(s): {seat_list}.")
+                    return False
+                # ---------------------------------
+                
                 # [REQUIREMENT 8: During merging... client should not be able to view seats (status handled by DB schema) and alert shown]
                 cursor.execute("""
                     UPDATE DailyBusGroup SET status = 'ALTERATION_IN_PROCESS' 
@@ -228,6 +248,8 @@ def trigger_manual_merge(admin_id, target_date, log_queue):
                 
                 time.sleep(2) 
                 
+                # Move seats from bus 2 to bus 1 if they are not colliding (safe now since we validated above)
+                # Note: Alternatively, if bus 2's available seats are just being deprecated, we deactivate the bus.
                 cursor.execute("""
                     UPDATE DailyBus SET group_id = %s, status = 'INACTIVE' 
                     WHERE daily_bus_id = %s
