@@ -292,10 +292,21 @@ def simulate_client_booking(client_id, target_date, log_queue):
         log_queue.put(f"[{time.time()}] Client {client_id[-4:]}: LOCKED seat {seat_id[-4:]} for 5 minutes.")
         
         # [REQUIREMENT 3: ...to allow one client to process same seat on the bus]
-        time.sleep(1) # Simulating processing time 
+        # Introduce a 10% chance that a client abandons their session or takes longer than 5 minutes
+        if random.random() < 0.10:
+            log_queue.put(f"[{time.time()}] Client {client_id[-4:]}: ⚠️ User abandoned session or took >5 minutes. Leaving seat locked.")
+            
+            # We explicitly roll back the current transaction state (releasing the SKIP LOCKED row lock)
+            # but leave the database status as 'LOCKED' with the expiration timestamp intact.
+            # This allows the background lock_sweeper to eventually clean it up.
+            conn.rollback() 
+            return False
+            
+        else:
+            # Standard path: User processes their booking normally within the 5-minute window
+            time.sleep(1) # Simulating processing time 
         
-        booking_id = str(uuid.uuid4())
-        
+        booking_id = str(uuid.uuid4())        
         cursor.execute("""
             INSERT INTO Booking (booking_id, user_id, seat_id, booking_date, status)
             VALUES (%s, %s, %s, %s, 'CONFIRMED')
