@@ -5,9 +5,9 @@ from datetime import date
 # Database connection configuration
 DB_CONFIG = {
     'host': 'localhost',
-    'user': 'root',           # Replace with your MySQL username
-    'password': 'your_new_password',   # Replace with your MySQL password
-    'database': 'bus_booking_system', # Replace with your database name
+    'user': 'root',
+    'password': 'your_new_password',
+    'database': 'bus_booking_system',
     'ssl_disabled': True
 }
 
