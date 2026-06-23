@@ -30,7 +30,25 @@ def monitor_resources(stop_event, metrics_dict):
     metrics_dict["end_idle_time"] = psutil.cpu_times().idle
 
 def async_logger(stop_event, log_queue, batch_size=50):
-    """Consumer Thread: Reads from queue and writes to disk in batches."""
+    """
+    Consumer Thread: Reads from queue and writes to disk in batches.
+    
+    REQUIREMENT 14 (Disk Activity Documentation):
+    - Activity: Multiple simulation threads generate log messages asynchronously. 
+      Instead of each thread competing for disk access, they push messages to an 
+      in-memory Queue. This thread consumes that Queue and writes to 'archive_activity.log'.
+    - Impact on Performance: This INCREASES overall performance. By offloading I/O 
+      to a dedicated background thread, the active simulation threads never block 
+      waiting for the physical disk to spin or the OS file handle to free up.
+      
+    REQUIREMENT 15 (Proving the Method):
+    - This implements the 'Asynchronous Batch Logging' pattern.
+    - Why it is optimized: The `batch_size=50` parameter caches messages and writes 
+      them in a single block operation. HDDs and SSDs handle continuous block writes 
+      significantly faster than fragmented, rapid micro-writes. This minimizes 
+      kernel-level context switching and prevents disk I/O bottlenecks during high 
+      concurrency bursts.
+    """
     buffer = []
     
     with open("archive_activity.log", "a") as log_file:
@@ -113,6 +131,35 @@ def auto_scale_buses(valid_dates, stop_event, log_queue):
                 log_queue.put(f"[{time.time()}] ❌ Auto-Scaler Error: {err}")
                 
         time.sleep(3)
+        
+    cursor.close()
+    conn.close()
+
+def lock_sweeper(stop_event, log_queue):
+    """
+    Background daemon to release abandoned seat locks.
+    Scans the database periodically and resets seats where the lock has expired.
+    """
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    
+    while not stop_event.is_set():
+        try:
+            cursor.execute("""
+                UPDATE SeatAvailability 
+                SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL
+                WHERE status = 'LOCKED' AND lock_expires_at < NOW()
+            """)
+            
+            if cursor.rowcount > 0:
+                conn.commit()
+                log_queue.put(f"[{time.time()}] 🧹 Sweeper: Reclaimed {cursor.rowcount} expired seat locks.")
+                
+        except mysql.connector.Error as err:
+            conn.rollback()
+            log_queue.put(f"[{time.time()}] ❌ Sweeper Error: {err}")
+            
+        time.sleep(10)  # Check every 10 seconds
         
     cursor.close()
     conn.close()
@@ -351,10 +398,12 @@ def run_simulation(num_clients, mode='threading'):
     monitor_thread = threading.Thread(target=monitor_resources, args=(stop_event, metrics_dict))
     logger_thread = threading.Thread(target=async_logger, args=(stop_event, log_queue))
     scaler_thread = threading.Thread(target=auto_scale_buses, args=(valid_dates, stop_event, log_queue))
+    sweeper_thread = threading.Thread(target=lock_sweeper, args=(stop_event, log_queue))
 
     monitor_thread.start()
     logger_thread.start()
     scaler_thread.start()
+    sweeper_thread.start()
 
     start_time = time.time()
     
@@ -407,6 +456,7 @@ def run_simulation(num_clients, mode='threading'):
     monitor_thread.join()
     logger_thread.join()
     scaler_thread.join()
+    sweeper_thread.join()
 
     cpu_idle_diff = metrics_dict["end_idle_time"] - metrics_dict["start_idle_time"]
     
