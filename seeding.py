@@ -1,6 +1,6 @@
 import mysql.connector
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 # Database connection configuration
 DB_CONFIG = {
@@ -19,9 +19,6 @@ def seed_database():
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        target_date = date.today()
-        print(f"Seeding database for date: {target_date}...")
-
         # 1. Seed Users (1 Admin, 3 Visitors)
         print("Inserting Users...")
         users = [
@@ -31,56 +28,60 @@ def seed_database():
             (generate_uuid(), 'VISITOR', 'charlie_d', False)
         ]
         cursor.executemany(
-            "INSERT INTO Users (user_id, role, username, is_active_today) VALUES (%s, %s, %s, %s)", 
+            "INSERT INTO Users (user_id, role, username, is_active_today) VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE user_id=user_id", 
             users
         )
 
-        # 2. Seed 100 Physical Buses
+        # 2. Seed 100 Physical Buses (Only done once)
         print("Inserting 100 Physical Buses...")
         buses = [(sn, 10) for sn in range(1, 101)]
-        cursor.executemany("INSERT INTO Bus (bus_sn, capacity) VALUES (%s, %s)", buses)
+        cursor.executemany("INSERT IGNORE INTO Bus (bus_sn, capacity) VALUES (%s, %s)", buses)
 
-        # 3. Seed Daily Schedules, Groups, and Seats
-        print("Inserting Daily Schedules and Seats...")
-        for sn in range(1, 101):
-            group_id = generate_uuid()
-            daily_bus_id = generate_uuid()
+        # 3. Seed Daily Schedules, Groups, and Seats for 7 DAYS
+        start_date = date.today()
+        
+        for day_offset in range(7):
+            target_date = start_date + timedelta(days=day_offset)
+            print(f"Seeding schedules and seats for date: {target_date}...")
             
-            # Bus 1-10 are ACTIVE, 11-100 are INACTIVE
-            status = 'ACTIVE' if sn <= 10 else 'INACTIVE'
-            
-            # Create a Group for the bus
-            cursor.execute(
-                "INSERT INTO DailyBusGroup (group_id, date, status) VALUES (%s, %s, %s)",
-                (group_id, target_date, 'NORMAL')
-            )
-            
-            # Create the DailyBus record
-            cursor.execute(
-                "INSERT INTO DailyBus (daily_bus_id, date, bus_sn, group_id, status) VALUES (%s, %s, %s, %s, %s)",
-                (daily_bus_id, target_date, sn, group_id, status)
-            )
-            
-            # 4. Generate 10 Seats ONLY if the bus is ACTIVE
-            if status == 'ACTIVE':
-                seats = [
-                    (generate_uuid(), daily_bus_id, seat_num, 'AVAILABLE') 
-                    for seat_num in range(1, 11)
-                ]
-                cursor.executemany(
-                    "INSERT INTO SeatAvailability (seat_id, daily_bus_id, seat_number, status) VALUES (%s, %s, %s, %s)",
-                    seats
+            for sn in range(1, 101):
+                group_id = generate_uuid()
+                daily_bus_id = generate_uuid()
+                
+                # Bus 1-10 are ACTIVE, 11-100 are INACTIVE
+                status = 'ACTIVE' if sn <= 10 else 'INACTIVE'
+                
+                # Create a Group for the bus
+                cursor.execute(
+                    "INSERT INTO DailyBusGroup (group_id, date, status) VALUES (%s, %s, %s)",
+                    (group_id, target_date, 'NORMAL')
                 )
+                
+                # Create the DailyBus record
+                cursor.execute(
+                    "INSERT INTO DailyBus (daily_bus_id, date, bus_sn, group_id, status) VALUES (%s, %s, %s, %s, %s)",
+                    (daily_bus_id, target_date, sn, group_id, status)
+                )
+                
+                # 4. Generate 10 Seats ONLY if the bus is ACTIVE
+                if status == 'ACTIVE':
+                    seats = [
+                        (generate_uuid(), daily_bus_id, seat_num, 'AVAILABLE') 
+                        for seat_num in range(1, 11)
+                    ]
+                    cursor.executemany(
+                        "INSERT INTO SeatAvailability (seat_id, daily_bus_id, seat_number, status) VALUES (%s, %s, %s, %s)",
+                        seats
+                    )
 
-        # 5. Initialize DailyMetrics
-        print("Initializing Daily Metrics...")
-        cursor.execute(
-            "INSERT INTO DailyMetrics (date, visitor_count, active_buses, booked_seats, load_factor) VALUES (%s, %s, %s, %s, %s)",
-            (target_date, 0, 10, 0, 0.00)
-        )
+            # 5. Initialize DailyMetrics for the day
+            cursor.execute(
+                "INSERT INTO DailyMetrics (date, visitor_count, active_buses, booked_seats, load_factor) VALUES (%s, %s, %s, %s, %s)",
+                (target_date, 0, 10, 0, 0.00)
+            )
 
         conn.commit()
-        print("✅ Database successfully seeded!")
+        print("✅ Database successfully seeded for 7 days!")
 
     except mysql.connector.Error as err:
         print(f"❌ Error: {err}")
