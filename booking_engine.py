@@ -83,6 +83,27 @@ def authenticate_admin(username, password):
             conn.close()
 
 
+def visitor_has_active_booking_on_date(cursor, visitor_id, trip_day, exclude_trip_seat=None):
+    query = """
+        SELECT COUNT(*)
+        FROM Booking b
+        JOIN Trip t ON b.trip_id = t.id
+        WHERE b.visitor_id = %s
+          AND DATE(t.trip_date) = %s
+          AND (
+              b.booking_status = 'Booked'
+              OR (b.booking_status = 'Pending' AND b.lock_expires_at >= NOW())
+          )
+    """
+    params = [visitor_id, trip_day]
+    if exclude_trip_seat is not None:
+        query += "\n          AND NOT (b.trip_id = %s AND b.seat_id = %s)"
+        params.extend(exclude_trip_seat)
+
+    cursor.execute(query, tuple(params))
+    return cursor.fetchone()[0] > 0
+
+
 def admin_merge_trips(username, password, target_trip_id, source_trip_id):
     if not authenticate_admin(username, password):
         print("Admin authentication failed.")
@@ -108,7 +129,21 @@ def request_seat(visitor_id, trip_id, seat_id):
         # This ensures all following queries are treated as a single operation
         cursor.execute("START TRANSACTION;")
 
-        # 3. ATTEMPT TO LOCK THE RECORD
+        # 3. DETERMINE THE TRIP DATE FOR DAILY LIMIT ENFORCEMENT
+        cursor.execute("SELECT DATE(trip_date) AS trip_day FROM Trip WHERE id = %s FOR UPDATE;", (trip_id,))
+        trip_row = cursor.fetchone()
+        if not trip_row:
+            print(f"Failed: Trip {trip_id} does not exist.")
+            conn.rollback()
+            return False
+
+        trip_day = trip_row[0]
+        if visitor_has_active_booking_on_date(cursor, visitor_id, trip_day):
+            print(f"Failed: Visitor {visitor_id} already has a seat reserved for {trip_day}.")
+            conn.rollback()
+            return False
+
+        # 4. ATTEMPT TO LOCK THE RECORD
         # FOR UPDATE tells MySQL: "Lock this row. If another thread is trying to read or write to this row, make them wait until I am done."
         check_query = """
             SELECT id, booking_status, lock_expires_at 
@@ -190,6 +225,17 @@ def confirm_booking(visitor_id, trip_id, seat_id):
 
         cursor = conn.cursor()
         
+        cursor.execute("SELECT DATE(trip_date) AS trip_day FROM Trip WHERE id = %s;", (trip_id,))
+        trip_row = cursor.fetchone()
+        if not trip_row:
+            print(f"Failed: Trip {trip_id} does not exist.")
+            return False
+
+        trip_day = trip_row[0]
+        if visitor_has_active_booking_on_date(cursor, visitor_id, trip_day, exclude_trip_seat=(trip_id, seat_id)):
+            print(f"Failed: Visitor {visitor_id} already has another booking on {trip_day}.")
+            return False
+
         # We only update if it is Pending AND hasn't expired yet
         update_query = """
             UPDATE Booking 
@@ -336,8 +382,8 @@ def scale_buses_if_needed(target_date_str):
                     break
 
                 spawn_query = """
-                    INSERT INTO Trip (bus_id, trip_date, system_status) 
-                    VALUES (%s, CONCAT(%s, ' 08:00:00'), 'Active');
+                        INSERT INTO Trip (bus_id, trip_date, system_status) 
+                    VALUES (%s, %s, 'Active');
                 """
                 cursor.execute(spawn_query, (new_bus_id, target_date_str))
                 print(f"Success: Bus {new_bus_id} added to the schedule for {target_date_str}.")
@@ -381,7 +427,7 @@ def scale_buses_if_needed(target_date_str):
                 new_bus_id = available_bus['id']
                 spawn_query = """
                     INSERT INTO Trip (bus_id, trip_date, system_status)
-                    VALUES (%s, CONCAT(%s, ' 08:00:00'), 'Active');
+                    VALUES (%s, %s, 'Active');
                 """
                 cursor.execute(spawn_query, (new_bus_id, target_date_str))
                 add_count += 1

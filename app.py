@@ -57,7 +57,7 @@ def get_all_trips():
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         '''
-        SELECT t.id, t.trip_date, t.system_status, bus.id AS bus_id, bus.total_seats,
+        SELECT t.id, DATE(t.trip_date) AS trip_date, t.system_status, bus.id AS bus_id, bus.total_seats,
             (SELECT COUNT(*) FROM Booking b WHERE b.trip_id = t.id AND b.booking_status = 'Booked') AS booked_seats,
             (SELECT COUNT(*) FROM Booking b WHERE b.trip_id = t.id AND b.booking_status = 'Pending' AND b.lock_expires_at >= NOW()) AS pending_locks
         FROM Trip t
@@ -76,7 +76,7 @@ def get_client_bookings(visitor_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         '''
-        SELECT b.id AS booking_id, t.id AS trip_id, t.trip_date, s.id AS seat_id, s.seat_number,
+        SELECT b.id AS booking_id, t.id AS trip_id, DATE(t.trip_date) AS trip_date, s.id AS seat_id, s.seat_number,
             b.booking_status, b.lock_expires_at
         FROM Booking b
         JOIN Trip t ON b.trip_id = t.id
@@ -116,7 +116,7 @@ def get_trip_details(trip_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         '''
-        SELECT t.id, t.trip_date, t.system_status, bus.id AS bus_id, bus.total_seats
+        SELECT t.id, DATE(t.trip_date) AS trip_date, t.system_status, bus.id AS bus_id, bus.total_seats
         FROM Trip t
         JOIN Bus bus ON t.bus_id = bus.id
         WHERE t.id = %s;

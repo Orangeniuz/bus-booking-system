@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <h2>Seat Selection for Trip {{ trip.id }}</h2>
-  <p><strong>Date / Time:</strong> {{ trip.trip_date }}</p>
+  <p><strong>Date:</strong> {{ trip.trip_date }}</p>
   <p><strong>Bus ID:</strong> {{ trip.bus_id }}</p>
   {% if locked_message %}
     <div class="message error">{{ locked_message }}</div>

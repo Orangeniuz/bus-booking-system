@@ -33,7 +33,7 @@ CREATE TABLE Seat (
 CREATE TABLE Trip (
     id INT AUTO_INCREMENT PRIMARY KEY,
     bus_id INT,
-    trip_date DATETIME NOT NULL,
+    trip_date DATE NOT NULL,
     system_status ENUM('Active', 'Merging') DEFAULT 'Active',
     FOREIGN KEY (bus_id) REFERENCES Bus(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -100,9 +100,9 @@ INSERT INTO Seat (bus_id, seat_number) VALUES
 -- 5. Insert Trips for multiple days
 -- Note: Updated column name to your 'trip_date'
 INSERT INTO Trip (bus_id, trip_date, system_status) VALUES
-(1, '2026-07-01 08:00:00', 'Active'), -- Trip 1
-(1, '2026-07-02 08:00:00', 'Active'), -- Trip 2
-(2, '2026-07-01 10:00:00', 'Active'); -- Trip 3
+(1, '2026-07-01', 'Active'), -- Trip 1
+(1, '2026-07-02', 'Active'), -- Trip 2
+(2, '2026-07-01', 'Active'); -- Trip 3
 
 SHOW TABLES;
 
