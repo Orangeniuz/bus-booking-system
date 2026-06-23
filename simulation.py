@@ -20,20 +20,23 @@ DB_CONFIG = {
 def monitor_resources(stop_event, metrics_dict):
     """Background thread to monitor CPU and Memory usage."""
     process = psutil.Process()
+    # [REQUIREMENT 11: Find the idle time of CPU]
     metrics_dict["start_idle_time"] = psutil.cpu_times().idle
     
     while not stop_event.is_set():
+        # [REQUIREMENT 11: Find maximum CPU usage and maximum virtual and physical memory]
         metrics_dict["max_cpu"] = max(metrics_dict["max_cpu"], psutil.cpu_percent(interval=0.1))
         metrics_dict["max_virt_mem"] = max(metrics_dict["max_virt_mem"], psutil.virtual_memory().used)
         metrics_dict["max_phys_mem"] = max(metrics_dict["max_phys_mem"], process.memory_info().rss)
         
     metrics_dict["end_idle_time"] = psutil.cpu_times().idle
 
+# [REQUIREMENT 13: Write logs of above activity as "archive". Multiple threads should write in the same file.]
 def async_logger(stop_event, log_queue, batch_size=50):
     """
     Consumer Thread: Reads from queue and writes to disk in batches.
     
-    REQUIREMENT 14 (Disk Activity Documentation):
+    # [REQUIREMENT 14: Document the disk activities while writing archive.]
     - Activity: Multiple simulation threads generate log messages asynchronously. 
       Instead of each thread competing for disk access, they push messages to an 
       in-memory Queue. This thread consumes that Queue and writes to 'archive_activity.log'.
@@ -41,7 +44,7 @@ def async_logger(stop_event, log_queue, batch_size=50):
       to a dedicated background thread, the active simulation threads never block 
       waiting for the physical disk to spin or the OS file handle to free up.
       
-    REQUIREMENT 15 (Proving the Method):
+    # [REQUIREMENT 15: Try to bring improvements in disk I/O activity or prove your method...]
     - This implements the 'Asynchronous Batch Logging' pattern.
     - Why it is optimized: The `batch_size=50` parameter caches messages and writes 
       them in a single block operation. HDDs and SSDs handle continuous block writes 
@@ -62,10 +65,8 @@ def async_logger(stop_event, log_queue, batch_size=50):
                     log_file.flush()
                     buffer.clear()
             except multiprocessing.queues.Empty:
-                # Using multiprocessing Empty exception
                 pass
             except Exception:
-                # Catch standard queue.Empty if running in a mode that uses standard queue
                 pass
 
         if buffer:
@@ -86,6 +87,7 @@ def auto_scale_buses(valid_dates, stop_event, log_queue):
                 if row:
                     load_factor, active_buses = row
                     
+                    # [REQUIREMENT 4: When load factor reaches max threshold (e.g. 0.8), extra buses allowed (e.g. 2) until limit (100)]
                     if load_factor >= 0.8 and active_buses < 100:
                         log_queue.put(f"[{time.time()}] ⚠️ LOAD HIGH on {target_date} ({load_factor}). Activating 2 new buses...")
                         
@@ -145,6 +147,7 @@ def lock_sweeper(stop_event, log_queue):
     
     while not stop_event.is_set():
         try:
+            # [REQUIREMENT 3: If client does not process after waiting time expires, seat allowed for next client.]
             cursor.execute("""
                 UPDATE SeatAvailability 
                 SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL
@@ -164,6 +167,7 @@ def lock_sweeper(stop_event, log_queue):
     cursor.close()
     conn.close()
 
+# [REQUIREMENT 7: Now have an admin login for this application]
 def admin_login(username, log_queue):
     """Simulates an admin user logging in."""
     log_queue.put(f"[{time.time()}] User '{username}' attempting login...")
@@ -199,6 +203,7 @@ def trigger_manual_merge(admin_id, target_date, log_queue):
         cursor.execute("SELECT load_factor, active_buses FROM DailyMetrics WHERE date = %s", (target_date,))
         row = cursor.fetchone()
         
+        # [REQUIREMENT 7: Allow merging of the buses if the load factor is below minimum threshold (e.g. 0.2)]
         if row and row[0] <= 0.20 and row[1] > 1:
             log_queue.put(f"[{time.time()}] 📉 Admin {admin_id[-4:]} initiated bus merge on {target_date} (Load: {row[0]}).")
             
@@ -213,6 +218,7 @@ def trigger_manual_merge(admin_id, target_date, log_queue):
                 bus1_id, group1_id = buses[0]
                 bus2_id, group2_id = buses[1]
                 
+                # [REQUIREMENT 8: During merging... client should not be able to view seats (status handled by DB schema) and alert shown]
                 cursor.execute("""
                     UPDATE DailyBusGroup SET status = 'ALTERATION_IN_PROCESS' 
                     WHERE group_id IN (%s, %s)
@@ -256,6 +262,8 @@ def simulate_client_booking(client_id, target_date, log_queue):
     cursor = conn.cursor()
     
     try:
+        # [REQUIREMENT 12: Use lock at suitable locations to carry on smooth concurrency]
+        # [REQUIREMENT 3: Multiple clients should be able to book simultaneously but not the same seat (handled by SKIP LOCKED)]
         cursor.execute("""
             SELECT s.seat_id, s.daily_bus_id 
             FROM SeatAvailability s
@@ -273,6 +281,7 @@ def simulate_client_booking(client_id, target_date, log_queue):
             
         seat_id, daily_bus_id = row
         
+        # [REQUIREMENT 3: There should be a waiting time (e.g. 5 minutes) indicated...]
         cursor.execute("""
             UPDATE SeatAvailability 
             SET status = 'LOCKED', locked_by = %s, lock_expires_at = DATE_ADD(NOW(), INTERVAL 5 MINUTE)
@@ -282,7 +291,8 @@ def simulate_client_booking(client_id, target_date, log_queue):
         
         log_queue.put(f"[{time.time()}] Client {client_id[-4:]}: LOCKED seat {seat_id[-4:]} for 5 minutes.")
         
-        time.sleep(1) 
+        # [REQUIREMENT 3: ...to allow one client to process same seat on the bus]
+        time.sleep(1) # Simulating processing time 
         
         booking_id = str(uuid.uuid4())
         
@@ -312,12 +322,14 @@ def simulate_client_booking(client_id, target_date, log_queue):
         cursor.close()
         conn.close()
 
+# [REQUIREMENT 6: Allow tickets cancellation for the clients]
 def simulate_client_cancellation(target_date, log_queue):
     """Simulates a random client cancelling their ticket."""
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor()
     
     try:
+        # [REQUIREMENT 12: Concurrency Lock for Cancellations]
         cursor.execute("""
             SELECT booking_id, seat_id, user_id 
             FROM Booking 
@@ -366,7 +378,6 @@ def run_simulation(num_clients, mode='threading'):
     print(f"--- Starting Concurrency Simulation [{mode.upper()} MODE] ---")
     print("Logs are being written asynchronously to 'archive_activity.log'...")
     
-    # Use Multiprocessing Manager to create safe shared objects across processes/threads
     manager = multiprocessing.Manager()
     log_queue = manager.Queue()
     metrics_dict = manager.dict({
@@ -377,8 +388,11 @@ def run_simulation(num_clients, mode='threading'):
         "end_idle_time": 0.0
     })
 
+    # [REQUIREMENT 5: Booking for multiple days (validating valid dates for agents)]
     valid_dates = [date.today() + timedelta(days=i) for i in range(7)]
     clients = [str(uuid.uuid4()) for _ in range(num_clients)]
+    
+    # [REQUIREMENT 9: Simulate this same process using multiple agent booking using parallel clients.]
     client_assignments = [(c_id, random.choice(valid_dates)) for c_id in clients]
     
     # Database Initialization Phase
@@ -388,12 +402,13 @@ def run_simulation(num_clients, mode='threading'):
         "INSERT IGNORE INTO Users (user_id, role, username) VALUES (%s, 'VISITOR', %s)",
         [(c_id, f"sim_user_{c_id[-4:]}") for c_id in clients]
     )
+    # [REQUIREMENT 1: Show the number of visitors for this bus booking software]
     for _, target_date in client_assignments:
         cursor.execute("UPDATE DailyMetrics SET visitor_count = visitor_count + 1 WHERE date = %s", (target_date,))
     conn.commit()
     conn.close()
 
-    # Start Background Daemons (These remain as threads inside the main process)
+    # Start Background Daemons
     stop_event = threading.Event()
     monitor_thread = threading.Thread(target=monitor_resources, args=(stop_event, metrics_dict))
     logger_thread = threading.Thread(target=async_logger, args=(stop_event, log_queue))
@@ -407,19 +422,16 @@ def run_simulation(num_clients, mode='threading'):
 
     start_time = time.time()
     
-    # =========================================================
-    # REQUIREMENT 10: EXECUTION MODES
-    # =========================================================
-    
+    # [REQUIREMENT 10: More than one client could be served using these approaches]
     if mode == 'iterative':
-        # Approach 10a: Iterative Serving (Sequential Execution)
+        # [REQUIREMENT 10a: Iterative serving]
         for c_id, target_date in client_assignments:
             simulate_client_booking(c_id, target_date, log_queue)
             if random.random() < 0.10:
                 simulate_client_cancellation(target_date, log_queue)
                 
     elif mode == 'threading':
-        # Approach 10b: Threading Techniques (Shared Memory Space)
+        # [REQUIREMENT 10b: Threading techniques]
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = []
             for c_id, target_date in client_assignments:
@@ -430,7 +442,7 @@ def run_simulation(num_clients, mode='threading'):
                 future.result()
                 
     elif mode == 'forking':
-        # Approach 10c: Forking Techniques (Distinct OS Processes)
+        # [REQUIREMENT 10c: Forking techniques]
         with ProcessPoolExecutor(max_workers=10) as executor:
             futures = []
             for c_id, target_date in client_assignments:
@@ -445,7 +457,6 @@ def run_simulation(num_clients, mode='threading'):
 
     execution_time = time.time() - start_time
     
-    # Simulate Manual Admin Merge
     print("\n--- Simulating Manual Admin Action ---")
     admin_id = admin_login('admin_super', log_queue)
     if admin_id:
@@ -458,6 +469,7 @@ def run_simulation(num_clients, mode='threading'):
     scaler_thread.join()
     sweeper_thread.join()
 
+    # [REQUIREMENT 11: Display Idle time, Max CPU, and Memory usage]
     cpu_idle_diff = metrics_dict["end_idle_time"] - metrics_dict["start_idle_time"]
     
     print("\n--- Simulation Complete ---")

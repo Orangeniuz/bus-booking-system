@@ -33,6 +33,7 @@ def seed_database():
         )
 
         # 2. Seed 100 Physical Buses (Only done once)
+        # [REQUIREMENT 4: Final limit of 100 buses is established here]
         print("Inserting 100 Physical Buses...")
         buses = [(sn, 10) for sn in range(1, 101)]
         cursor.executemany("INSERT IGNORE INTO Bus (bus_sn, capacity) VALUES (%s, %s)", buses)
@@ -40,6 +41,7 @@ def seed_database():
         # 3. Seed Daily Schedules, Groups, and Seats for 7 DAYS
         start_date = date.today()
         
+        # [REQUIREMENT 5: Allow the booking for multiple days now (7 days seeded)]
         for day_offset in range(7):
             target_date = start_date + timedelta(days=day_offset)
             print(f"Seeding schedules and seats for date: {target_date}...")
@@ -48,6 +50,7 @@ def seed_database():
                 group_id = generate_uuid()
                 daily_bus_id = generate_uuid()
                 
+                # [REQUIREMENT 2: Have starting limit on number of buses (e.g. 10)]
                 # Bus 1-10 are ACTIVE, 11-100 are INACTIVE
                 status = 'ACTIVE' if sn <= 10 else 'INACTIVE'
                 
