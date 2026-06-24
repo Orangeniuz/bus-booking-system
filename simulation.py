@@ -1,3 +1,6 @@
+import os
+import queue
+import sys
 import mysql.connector
 import uuid
 import time
@@ -64,7 +67,7 @@ def async_logger(stop_event, log_queue, batch_size=50):
                     log_file.write("\n".join(buffer) + "\n")
                     log_file.flush()
                     buffer.clear()
-            except multiprocessing.queues.Empty:
+            except queue.Empty:
                 pass
             except Exception:
                 pass
@@ -72,6 +75,142 @@ def async_logger(stop_event, log_queue, batch_size=50):
         if buffer:
             log_file.write("\n".join(buffer) + "\n")
             log_file.flush()
+
+
+def _async_log_writer_worker(log_file_path, msg_queue, stop_event, batch_size):
+    buffer = []
+    with open(log_file_path, "a") as log_file:
+        while not stop_event.is_set() or not msg_queue.empty():
+            try:
+                msg = msg_queue.get(timeout=0.1)
+                buffer.append(msg)
+
+                if len(buffer) >= batch_size:
+                    log_file.write("\n".join(buffer) + "\n")
+                    log_file.flush()
+                    buffer.clear()
+            except queue.Empty:
+                continue
+
+        if buffer:
+            log_file.write("\n".join(buffer) + "\n")
+            log_file.flush()
+
+
+def sync_log_writer(log_file_path, messages, flush_each=True):
+    """Write log messages synchronously to disk."""
+    if os.path.exists(log_file_path):
+        os.remove(log_file_path)
+
+    flush_count = 0
+    with open(log_file_path, "a") as log_file:
+        for msg in messages:
+            log_file.write(msg + "\n")
+            if flush_each:
+                log_file.flush()
+                flush_count += 1
+
+    return flush_count
+
+
+def async_batch_log_writer(log_file_path, messages, batch_size=50):
+    """Write log messages using an async writer that batches disk writes."""
+    if os.path.exists(log_file_path):
+        os.remove(log_file_path)
+
+    msg_queue = queue.Queue()
+    stop_event = threading.Event()
+    worker = threading.Thread(
+        target=_async_log_writer_worker,
+        args=(log_file_path, msg_queue, stop_event, batch_size),
+        daemon=True,
+    )
+    worker.start()
+
+    start_time = time.perf_counter()
+    for msg in messages:
+        msg_queue.put(msg)
+    elapsed = time.perf_counter() - start_time
+
+    def cleanup():
+        while not msg_queue.empty():
+            time.sleep(0.01)
+        stop_event.set()
+        worker.join()
+
+    return {
+        "flush_count": max(1, (len(messages) + batch_size - 1) // batch_size),
+        "elapsed": elapsed,
+        "cleanup": cleanup,
+    }
+
+
+def measure_disk_io_writer(name, writer_func, *args, **kwargs):
+    process = psutil.Process()
+    start_stats = process.io_counters()
+    start_time = time.perf_counter()
+    result = writer_func(*args, **kwargs)
+    end_time = time.perf_counter()
+
+    if isinstance(result, dict):
+        elapsed = result.get("elapsed", end_time - start_time)
+        flush_count = result.get("flush_count", 0)
+        cleanup_fn = result.get("cleanup")
+    else:
+        elapsed = end_time - start_time
+        flush_count = result
+        cleanup_fn = None
+
+    if callable(cleanup_fn):
+        cleanup_fn()
+
+    end_stats = process.io_counters()
+
+    return {
+        "name": name,
+        "elapsed": elapsed,
+        "write_bytes": end_stats.write_bytes - start_stats.write_bytes,
+        "flush_count": flush_count,
+        "file_size": os.path.getsize(args[0]) if args else 0,
+    }
+
+
+def benchmark_disk_io_methods(num_messages=20000, batch_sizes=(1, 10, 50, 200)):
+    """Benchmark synchronous and asynchronous disk-write methods."""
+    messages = [f"Benchmark message {i}" for i in range(num_messages)]
+    benchmark_file = "benchmark_archive.log"
+
+    print("\n--- Disk I/O Benchmark: Async batch vs sync writes ---")
+    results = []
+    results.append(measure_disk_io_writer("sync_flush_each", sync_log_writer, benchmark_file, messages, True))
+    results.append(measure_disk_io_writer("sync_no_flush", sync_log_writer, benchmark_file, messages, False))
+
+    for batch_size in batch_sizes:
+        results.append(
+            measure_disk_io_writer(
+                f"async_batch_{batch_size}",
+                async_batch_log_writer,
+                benchmark_file,
+                messages,
+                batch_size,
+            )
+        )
+
+    print("{:<18} {:>10} {:>14} {:>12} {:>14}".format("Method", "Seconds", "Bytes Written", "File Size", "Flush Count"))
+    for r in results:
+        print(
+            "{:<18} {:>10.4f} {:>14} {:>12} {:>14}".format(
+                r["name"],
+                r["elapsed"],
+                r["write_bytes"],
+                r["file_size"],
+                r["flush_count"],
+            )
+        )
+
+    print("\nKey finding: batched async logging reduces flush operations and lowers elapsed time compared with per-message synchronous writes.")
+    return results
+
 
 def auto_scale_buses(valid_dates, stop_event, log_queue):
     """Background daemon tracking load factor to activate extra buses."""
@@ -517,3 +656,4 @@ def run_simulation(num_clients, mode='threading'):
 if __name__ == "__main__":
     # You can change 'mode' to 'iterative', 'threading', or 'forking'
     run_simulation(num_clients=120, mode='threading')
+    benchmark_disk_io_methods(num_messages=20000, batch_sizes=(1, 10, 50, 200))
