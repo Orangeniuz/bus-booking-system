@@ -429,7 +429,10 @@ def simulate_client_booking(client_id, target_date, log_queue):
             SELECT s.seat_id, s.daily_bus_id 
             FROM SeatAvailability s
             JOIN DailyBus d ON s.daily_bus_id = d.daily_bus_id
-            WHERE d.date = %s AND s.status = 'AVAILABLE'
+            JOIN DailyBusGroup g ON d.group_id = g.group_id
+            WHERE d.date = %s
+              AND s.status = 'AVAILABLE'
+              AND g.status != 'ALTERATION_IN_PROCESS'
             LIMIT 1
             FOR UPDATE SKIP LOCKED
         """, (target_date,))
