@@ -123,11 +123,11 @@ def cancel_booking(user_id, booking_id):
             (booking_id,),
         )
         cursor.execute(
-            "UPDATE SeatAvailability SET status = 'AVAILABLE' WHERE seat_id = %s",
+            "UPDATE SeatAvailability SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL WHERE seat_id = %s",
             (seat_id,),
         )
         cursor.execute(
-            "UPDATE DailyMetrics SET visitor_count = GREATEST(visitor_count - 1, 0), booked_seats = GREATEST(booked_seats - 1, 0) WHERE date = %s",
+            "UPDATE DailyMetrics SET booked_seats = GREATEST(booked_seats - 1, 0) WHERE date = %s",
             (booking_date,),
         )
         cursor.execute(
@@ -252,6 +252,34 @@ def list_buses_for_date(target_date):
     return buses
 
 
+def set_user_active_status(user_id, is_active):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE Users SET is_active_today = %s WHERE user_id = %s",
+            (is_active, user_id),
+        )
+        conn.commit()
+    except mysql.connector.Error:
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_current_active_visitor_count():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) FROM Users WHERE role = 'VISITOR' AND is_active_today = TRUE"
+    )
+    count = cursor.fetchone()[0]
+    cursor.close()
+    conn.close()
+    return int(count)
+
+
 def get_daily_metrics(target_date):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -263,6 +291,7 @@ def get_daily_metrics(target_date):
     cursor.close()
     conn.close()
     metrics['load_factor'] = float(metrics.get('load_factor', 0.0) or 0.0)
+    metrics['visitor_count'] = get_current_active_visitor_count()
     return metrics
 
 
@@ -292,7 +321,7 @@ def user_has_booking_for_date(user_id, booking_date):
     return result is not None
 
 
-def book_seat(daily_bus_id, seat_number, user_id):
+def lock_seat_for_booking(daily_bus_id, seat_number, user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -302,29 +331,45 @@ def book_seat(daily_bus_id, seat_number, user_id):
         )
         date_row = cursor.fetchone()
         if not date_row:
-            return False, "Could not determine the booking date."
+            return None, None, "Could not determine the booking date."
 
         booking_date = date_row[0]
         if user_has_booking_for_date(user_id, booking_date):
-            return False, "You already have a booking for this date. Cancel your existing booking to book a different seat."
+            return None, booking_date, "You already have a booking for this date. Cancel your existing booking to book a different seat."
 
         cursor.execute(
-            "SELECT seat_id, status FROM SeatAvailability WHERE daily_bus_id = %s AND seat_number = %s",
+            "SELECT seat_id FROM SeatAvailability WHERE daily_bus_id = %s AND seat_number = %s AND status = 'AVAILABLE' FOR UPDATE SKIP LOCKED",
             (daily_bus_id, seat_number),
         )
         row = cursor.fetchone()
         if not row:
-            return False, "Seat not found for the selected bus."
+            return None, booking_date, "That seat is already booked or temporarily locked. Please choose another one."
 
-        seat_id, status = row
-        if status != 'AVAILABLE':
-            return False, "That seat is already booked. Please choose another one."
-
+        seat_id = row[0]
         cursor.execute(
-            "UPDATE SeatAvailability SET status = 'BOOKED' WHERE seat_id = %s",
-            (seat_id,),
+            "UPDATE SeatAvailability SET status = 'LOCKED', locked_by = %s, lock_expires_at = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE seat_id = %s",
+            (user_id, seat_id),
         )
+        conn.commit()
+        return seat_id, booking_date, None
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return None, None, f"Database error: {err}"
+    finally:
+        cursor.close()
+        conn.close()
 
+
+def book_seat(daily_bus_id, seat_number, user_id):
+    seat_id, booking_date, error = lock_seat_for_booking(daily_bus_id, seat_number, user_id)
+    if error:
+        return False, error
+    if not seat_id:
+        return False, "Could not lock the selected seat. Please try again."
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
         booking_id = str(uuid.uuid4())
         cursor.execute(
             "INSERT INTO Booking (booking_id, user_id, seat_id, booking_date, status) VALUES (%s, %s, %s, %s, 'CONFIRMED')",
@@ -332,7 +377,12 @@ def book_seat(daily_bus_id, seat_number, user_id):
         )
 
         cursor.execute(
-            "UPDATE DailyMetrics SET visitor_count = visitor_count + 1, booked_seats = booked_seats + 1 WHERE date = %s",
+            "UPDATE SeatAvailability SET status = 'BOOKED', locked_by = NULL, lock_expires_at = NULL WHERE seat_id = %s",
+            (seat_id,),
+        )
+
+        cursor.execute(
+            "UPDATE DailyMetrics SET booked_seats = booked_seats + 1 WHERE date = %s",
             (booking_date,),
         )
 
@@ -391,6 +441,7 @@ def login():
             return redirect(url_for('login'))
 
         session['user'] = user
+        set_user_active_status(user['user_id'], True)
         flash(f"Logged in as {user['username']} ({user['role']}).", 'success')
         return redirect(url_for('index'))
 
@@ -415,6 +466,7 @@ def register():
             return redirect(url_for('register'))
 
         session['user'] = user
+        set_user_active_status(user['user_id'], True)
         flash(f"Registration successful. Logged in as {user['username']}.", 'success')
         return redirect(url_for('dashboard'))
 
@@ -423,6 +475,9 @@ def register():
 
 @app.route('/logout')
 def logout():
+    user = session.get('user')
+    if user:
+        set_user_active_status(user['user_id'], False)
     session.pop('user', None)
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
