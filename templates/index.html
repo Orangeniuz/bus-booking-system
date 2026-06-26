@@ -19,6 +19,7 @@
     <p>Daily load factor: <strong>{{ '%.2f' | format(metrics.load_factor) }}</strong></p>
     <p>Active buses: <strong>{{ metrics.active_buses }}</strong></p>
     <p>Booked seats: <strong>{{ metrics.booked_seats }}</strong></p>
+    <p>Total Visitors: <strong>{{ metrics.visitor_count }}</strong></p>
     {% if current_user and current_user.role == 'VISITOR' %}
         <div class="form-actions" style="margin-top: 16px;">
             <a class="button" href="{{ url_for('dashboard') }}">View my bookings</a>
