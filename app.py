@@ -225,6 +225,24 @@ def merge_two_active_buses(target_date):
         conn.close()
 
 
+def bus_group_is_alteration_in_process(daily_bus_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT g.status
+        FROM DailyBus db
+        JOIN DailyBusGroup g ON db.group_id = g.group_id
+        WHERE db.daily_bus_id = %s
+        """,
+        (daily_bus_id,),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return bool(row and row[0] == 'ALTERATION_IN_PROCESS')
+
+
 def list_buses_for_date(target_date):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -233,13 +251,15 @@ def list_buses_for_date(target_date):
             db.daily_bus_id,
             db.bus_sn,
             db.status,
+            g.status AS group_status,
             COUNT(sa.seat_id) AS total_seats,
-            SUM(sa.status = 'AVAILABLE') AS available_seats
+            SUM(CASE WHEN g.status = 'NORMAL' AND sa.status = 'AVAILABLE' THEN 1 ELSE 0 END) AS available_seats
         FROM DailyBus db
+        JOIN DailyBusGroup g ON db.group_id = g.group_id
         LEFT JOIN SeatAvailability sa ON sa.daily_bus_id = db.daily_bus_id
         WHERE db.date = %s
           AND db.status = 'ACTIVE'
-        GROUP BY db.daily_bus_id
+        GROUP BY db.daily_bus_id, db.bus_sn, db.status, g.status
         ORDER BY db.bus_sn
     """
     cursor.execute(query, (target_date,))
@@ -299,7 +319,16 @@ def fetch_available_seats(daily_bus_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT seat_number FROM SeatAvailability WHERE daily_bus_id = %s AND status = 'AVAILABLE' ORDER BY seat_number",
+        """
+        SELECT sa.seat_number
+        FROM SeatAvailability sa
+        JOIN DailyBus db ON sa.daily_bus_id = db.daily_bus_id
+        JOIN DailyBusGroup g ON db.group_id = g.group_id
+        WHERE sa.daily_bus_id = %s
+          AND sa.status = 'AVAILABLE'
+          AND g.status = 'NORMAL'
+        ORDER BY sa.seat_number
+        """,
         (daily_bus_id,),
     )
     seats = [row['seat_number'] for row in cursor.fetchall()]
@@ -326,14 +355,21 @@ def lock_seat_for_booking(daily_bus_id, seat_number, user_id):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT date FROM DailyBus WHERE daily_bus_id = %s",
+            """
+            SELECT db.date, g.status
+            FROM DailyBus db
+            JOIN DailyBusGroup g ON db.group_id = g.group_id
+            WHERE db.daily_bus_id = %s
+            """,
             (daily_bus_id,),
         )
         date_row = cursor.fetchone()
         if not date_row:
             return None, None, "Could not determine the booking date."
 
-        booking_date = date_row[0]
+        booking_date, group_status = date_row
+        if group_status == 'ALTERATION_IN_PROCESS':
+            return None, booking_date, "Bus alteration in process. Booking is temporarily unavailable."
         if user_has_booking_for_date(user_id, booking_date):
             return None, booking_date, "You already have a booking for this date. Cancel your existing booking to book a different seat."
 
@@ -521,6 +557,9 @@ def merge():
 @login_required('VISITOR')
 def book(date, bus_id):
     user = session['user']
+    if bus_group_is_alteration_in_process(bus_id):
+        flash('Bus alteration in process. Seats are temporarily unavailable.', 'warning')
+        return redirect(url_for('index', date=date))
     available_seats = fetch_available_seats(bus_id)
     if request.method == 'POST':
         seat_number = request.form.get('seat_number')

@@ -31,8 +31,12 @@
     {% for bus in buses %}
     <div class="card">
         <h3>Bus {{ bus.bus_sn }}</h3>
+        {% if bus.group_status == 'ALTERATION_IN_PROCESS' %}
+        <div class="flash warning">Bus alteration in process</div>
+        {% else %}
         <p>Available seats: <strong>{{ bus.available_seats }}</strong></p>
         <a class="button" href="{{ url_for('book', date=selected_date, bus_id=bus.daily_bus_id) }}">Book a seat</a>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
