@@ -1,9 +1,14 @@
 from datetime import date, timedelta
 import mysql.connector
+import os
+import queue
+import threading
 import uuid
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from functools import wraps
+
+from simulation import auto_scale_buses, lock_sweeper
 
 app = Flask(__name__)
 app.secret_key = "replace-with-a-secure-key"
@@ -574,6 +579,34 @@ def book(date, bus_id):
         return redirect(url_for('book', date=date, bus_id=bus_id))
 
     return render_template('book.html', date=date, bus_id=bus_id, seats=available_seats, username=user['username'])
+
+
+_background_stop_event = None
+_background_started = False
+
+
+def start_background_services():
+    global _background_started, _background_stop_event
+    if _background_started:
+        return
+    if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return
+
+    _background_started = True
+    _background_stop_event = threading.Event()
+    log_queue = queue.Queue()
+    valid_dates = get_upcoming_dates()
+
+    for target, args in (
+        (auto_scale_buses, (valid_dates, _background_stop_event, log_queue)),
+        (lock_sweeper, (_background_stop_event, log_queue)),
+    ):
+        threading.Thread(target=target, args=args, daemon=True).start()
+
+
+@app.before_request
+def _ensure_background_services():
+    start_background_services()
 
 
 if __name__ == '__main__':
