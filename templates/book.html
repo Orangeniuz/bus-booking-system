@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <h2>Book a seat</h2>
+    <p>Passenger: <strong>{{ username }}</strong></p>
+    <p>Date: <strong>{{ date }}</strong></p>
+    <form method="post" action="{{ url_for('book', date=date, bus_id=bus_id) }}">
+        <label for="seat_number">Choose an available seat</label>
+        <select id="seat_number" name="seat_number">
+            <option value="">Select a seat</option>
+            {% for seat in seats %}
+                <option value="{{ seat }}">Seat {{ seat }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="form-actions">
+            <button class="button" type="submit">Confirm booking</button>
+            <a class="button" href="{{ url_for('index', date=date) }}">Back to schedule</a>
+        </div>
+    </form>
+</div>
+{% if not seats %}
+<div class="card">
+    <p>No available seats remain on this bus.</p>
+</div>
+{% endif %}
+{% endblock %}

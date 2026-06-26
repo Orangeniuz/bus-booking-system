@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Booking System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f7fb;
+            color: #202124;
+        }
+        .site-header {
+            background: #003366;
+            color: white;
+            padding: 16px 24px;
+        }
+        .container {
+            max-width: 980px;
+            margin: 24px auto;
+            padding: 0 20px 40px;
+        }
+        .card {
+            background: white;
+            border: 1px solid #d9e2ef;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+        }
+        .button {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #004b8e;
+        }
+        .flash {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+        }
+        .flash.success { background: #e6f4ea; color: #1b5e20; }
+        .flash.warning { background: #fff4e5; color: #7a4f01; }
+        .flash.danger { background: #fdecea; color: #611a15; }
+        label, select, input {
+            display: block;
+            width: 100%;
+        }
+        label { margin-bottom: 6px; font-weight: 600; }
+        select, input {
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 1rem;
+        }
+        .form-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+<header class="site-header">
+    <div class="container">
+        <h1>Bus Booking System</h1>
+        <p>View schedules and book seats for the next 7 days.</p>
+    </div>
+</header>
+<main class="container">
+    <div style="margin-bottom: 18px; text-align: right;">
+        {% if current_user %}
+            Logged in as <strong>{{ current_user.username }}</strong> ({{ current_user.role }})
+        {% else %}
+            <a class="button" href="{{ url_for('login') }}">Login</a>
+            <a class="button" href="{{ url_for('register') }}">Register</a>
+        {% endif %}
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

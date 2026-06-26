@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <h2>Dashboard</h2>
+    <p>Welcome, <strong>{{ user.username }}</strong>!</p>
+    <p>Your role: <strong>{{ user.role }}</strong></p>
+    <div class="form-actions">
+        <a class="button" href="{{ url_for('index') }}">View schedule</a>
+        <a class="button" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</div>
+
+{% if user.role == 'VISITOR' %}
+<div class="card">
+    <h3>Your confirmed bookings</h3>
+    {% if bookings %}
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding: 8px; border-bottom: 1px solid #dde3ea;">Date</th>
+                    <th style="text-align:left; padding: 8px; border-bottom: 1px solid #dde3ea;">Bus</th>
+                    <th style="text-align:left; padding: 8px; border-bottom: 1px solid #dde3ea;">Seat</th>
+                    <th style="text-align:left; padding: 8px; border-bottom: 1px solid #dde3ea;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">{{ booking.travel_date }}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">{{ booking.bus_sn }}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">{{ booking.seat_number }}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">
+                        <form method="post" action="{{ url_for('cancel', booking_id=booking.booking_id) }}" style="margin:0;">
+                            <button class="button" type="submit">Cancel</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No confirmed bookings yet.</p>
+    {% endif %}
+</div>
+{% elif user.role == 'ADMIN' %}
+<div class="card">
+    <h3>Admin actions</h3>
+    <form method="post" action="{{ url_for('merge') }}">
+        <label for="date">Target date for merge</label>
+        <input id="date" name="date" type="date" value="{{ request.args.get('date', '') or '' }}" />
+        <button class="button" type="submit">Merge two active buses</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

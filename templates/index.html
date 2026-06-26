@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <form method="get" action="{{ url_for('index') }}">
+        <label for="date">Select travel date</label>
+        <select name="date" id="date" onchange="this.form.submit()">
+            {% for current_date in dates %}
+                <option value="{{ current_date.isoformat() }}" {% if current_date.isoformat() == selected_date %}selected{% endif %}>
+                    {{ current_date.strftime('%A, %B %d, %Y') }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<h2>Bus Schedule for {{ selected_date }}</h2>
+<div class="card">
+    <p>Daily load factor: <strong>{{ '%.2f' | format(metrics.load_factor) }}</strong></p>
+    <p>Active buses: <strong>{{ metrics.active_buses }}</strong></p>
+    <p>Booked seats: <strong>{{ metrics.booked_seats }}</strong></p>
+    {% if current_user and current_user.role == 'VISITOR' %}
+        <div class="form-actions" style="margin-top: 16px;">
+            <a class="button" href="{{ url_for('dashboard') }}">View my bookings</a>
+        </div>
+    {% endif %}
+</div>
+{% if buses %}
+<div class="grid">
+    {% for bus in buses %}
+    <div class="card">
+        <h3>Bus {{ bus.bus_sn }}</h3>
+        <p>Available seats: <strong>{{ bus.available_seats }}</strong></p>
+        <a class="button" href="{{ url_for('book', date=selected_date, bus_id=bus.daily_bus_id) }}">Book a seat</a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <p>No active buses are currently scheduled for this date.</p>
+</div>
+{% endif %}
+{% endblock %}
