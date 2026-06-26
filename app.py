@@ -355,10 +355,12 @@ def user_has_booking_for_date(user_id, booking_date):
     return result is not None
 
 
-def lock_seat_for_booking(daily_bus_id, seat_number, user_id):
+def book_seat(daily_bus_id, seat_number, user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        conn.start_transaction()
+
         cursor.execute(
             """
             SELECT db.date, g.status
@@ -370,77 +372,63 @@ def lock_seat_for_booking(daily_bus_id, seat_number, user_id):
         )
         date_row = cursor.fetchone()
         if not date_row:
-            return None, None, "Could not determine the booking date."
+            conn.rollback()
+            return False, "Could not determine the booking date."
 
         booking_date, group_status = date_row
         if group_status == 'ALTERATION_IN_PROCESS':
-            return None, booking_date, "Bus alteration in process. Booking is temporarily unavailable."
-        if user_has_booking_for_date(user_id, booking_date):
-            return None, booking_date, "You already have a booking for this date. Cancel your existing booking to book a different seat."
+            conn.rollback()
+            return False, "Bus alteration in process. Booking is temporarily unavailable."
 
         cursor.execute(
-            "SELECT seat_id FROM SeatAvailability WHERE daily_bus_id = %s AND seat_number = %s AND status = 'AVAILABLE' FOR UPDATE SKIP LOCKED",
+            """
+            SELECT booking_id
+            FROM Booking
+            WHERE user_id = %s AND booking_date = %s AND status = 'CONFIRMED'
+            FOR UPDATE
+            """,
+            (user_id, booking_date),
+        )
+        if cursor.fetchone():
+            conn.rollback()
+            return False, "You already have a booking for this date. Cancel your existing booking to book a different seat."
+
+        cursor.execute(
+            """
+            SELECT seat_id
+            FROM SeatAvailability
+            WHERE daily_bus_id = %s AND seat_number = %s AND status = 'AVAILABLE'
+            FOR UPDATE SKIP LOCKED
+            """,
             (daily_bus_id, seat_number),
         )
         row = cursor.fetchone()
         if not row:
-            return None, booking_date, "That seat is already booked or temporarily locked. Please choose another one."
+            conn.rollback()
+            return False, "That seat is already booked or temporarily locked. Please choose another one."
 
         seat_id = row[0]
-        cursor.execute(
-            "UPDATE SeatAvailability SET status = 'LOCKED', locked_by = %s, lock_expires_at = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE seat_id = %s",
-            (user_id, seat_id),
-        )
-        conn.commit()
-        return seat_id, booking_date, None
-    except mysql.connector.Error as err:
-        conn.rollback()
-        return None, None, f"Database error: {err}"
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def book_seat(daily_bus_id, seat_number, user_id):
-    seat_id, booking_date, error = lock_seat_for_booking(daily_bus_id, seat_number, user_id)
-    if error:
-        return False, error
-    if not seat_id:
-        return False, "Could not lock the selected seat. Please try again."
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
         booking_id = str(uuid.uuid4())
         cursor.execute(
             "INSERT INTO Booking (booking_id, user_id, seat_id, booking_date, status) VALUES (%s, %s, %s, %s, 'CONFIRMED')",
             (booking_id, user_id, seat_id, booking_date),
         )
-
         cursor.execute(
             "UPDATE SeatAvailability SET status = 'BOOKED', locked_by = NULL, lock_expires_at = NULL WHERE seat_id = %s",
             (seat_id,),
         )
-
         cursor.execute(
-            "UPDATE DailyMetrics SET booked_seats = booked_seats + 1 WHERE date = %s",
-            (booking_date,),
-        )
-
-        cursor.execute(
-            "SELECT booked_seats, active_buses FROM DailyMetrics WHERE date = %s",
+            "SELECT booked_seats, active_buses FROM DailyMetrics WHERE date = %s FOR UPDATE",
             (booking_date,),
         )
         metrics = cursor.fetchone()
         if metrics:
             booked_seats, active_buses = metrics
-            if active_buses and active_buses > 0:
-                new_load_factor = booked_seats / (active_buses * 10)
-            else:
-                new_load_factor = 0.0
+            new_booked = booked_seats + 1
+            new_load_factor = new_booked / (active_buses * 10) if active_buses and active_buses > 0 else 0.0
             cursor.execute(
-                "UPDATE DailyMetrics SET load_factor = %s WHERE date = %s",
-                (new_load_factor, booking_date),
+                "UPDATE DailyMetrics SET booked_seats = %s, load_factor = %s WHERE date = %s",
+                (new_booked, new_load_factor, booking_date),
             )
 
         conn.commit()
