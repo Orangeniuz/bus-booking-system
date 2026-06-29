@@ -350,6 +350,65 @@ def user_has_booking_for_date(user_id, booking_date):
     return result is not None
 
 
+def maybe_scale_buses(booking_date, cursor, conn):
+    """
+    [REQUIREMENT 4] Check load factor after a booking and activate up to 2
+    additional buses if the threshold (0.8) is reached and the 100-bus cap
+    has not been hit. Runs inside the already-open transaction from book_seat()
+    so no extra connection is needed.
+    """
+    cursor.execute(
+        "SELECT load_factor, active_buses FROM DailyMetrics WHERE date = %s",
+        (booking_date,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return
+
+    load_factor, active_buses = row
+    if load_factor < 0.8 or active_buses >= 100:
+        return
+
+    cursor.execute(
+        """
+        SELECT daily_bus_id FROM DailyBus
+        WHERE date = %s AND status = 'INACTIVE'
+        ORDER BY bus_sn ASC LIMIT 2
+        """,
+        (booking_date,),
+    )
+    buses_to_activate = [r[0] for r in cursor.fetchall()]
+    if not buses_to_activate:
+        return
+
+    fmt = ','.join(['%s'] * len(buses_to_activate))
+    cursor.execute(
+        f"UPDATE DailyBus SET status = 'ACTIVE' WHERE daily_bus_id IN ({fmt})",
+        tuple(buses_to_activate),
+    )
+
+    new_seats = [
+        (str(uuid.uuid4()), b_id, seat_num, 'AVAILABLE')
+        for b_id in buses_to_activate
+        for seat_num in range(1, 11)
+    ]
+    cursor.executemany(
+        "INSERT INTO SeatAvailability (seat_id, daily_bus_id, seat_number, status) VALUES (%s, %s, %s, %s)",
+        new_seats,
+    )
+
+    num_activated = len(buses_to_activate)
+    cursor.execute(
+        """
+        UPDATE DailyMetrics
+        SET active_buses = active_buses + %s,
+            load_factor  = booked_seats / ((active_buses + %s) * 10)
+        WHERE date = %s
+        """,
+        (num_activated, num_activated, booking_date),
+    )
+
+
 def lock_seat_for_booking(daily_bus_id, seat_number, user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -437,6 +496,10 @@ def book_seat(daily_bus_id, seat_number, user_id):
                 "UPDATE DailyMetrics SET load_factor = %s WHERE date = %s",
                 (new_load_factor, booking_date),
             )
+
+        # [REQUIREMENT 4] Trigger auto-scaling if load factor has hit the threshold.
+        # Reuses the open cursor/conn so no extra DB round-trip is needed.
+        maybe_scale_buses(booking_date, cursor, conn)
 
         conn.commit()
         return True, f"Seat {seat_number} successfully booked."
